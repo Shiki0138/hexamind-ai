@@ -75,10 +75,11 @@ const AGENTS: Agent[] = [
 
 interface AgentSelectionScreenProps {
   onBack: () => void;
-  onNext: (selectedAgents: string[]) => void;
+  onNext?: (selectedAgents: string[]) => void;
+  onAgentsSelected?: (selectedAgents: string[]) => void;
 }
 
-export default function AgentSelectionScreen({ onBack, onNext }: AgentSelectionScreenProps) {
+export default function AgentSelectionScreen({ onBack, onNext, onAgentsSelected }: AgentSelectionScreenProps) {
   const [selectedAgents, setSelectedAgents] = useState<string[]>(['ceo', 'cfo', 'devil']);
 
   const toggleAgent = (agentId: string) => {
@@ -185,7 +186,7 @@ export default function AgentSelectionScreen({ onBack, onNext }: AgentSelectionS
           <Button
             className="w-full"
             disabled={selectedAgents.length === 0}
-            onClick={() => onNext(selectedAgents)}
+            onClick={() => (onNext || onAgentsSelected)?.(selectedAgents)}
             rightIcon={<ArrowRightIcon className="h-4 w-4" />}
           >
             次へ（{selectedAgents.length}名選択中）
