@@ -1,18 +1,11 @@
 {
-  "name": "night-shift-ai",
-  "version": 2,
   "buildCommand": "npm run build",
-  "installCommand": "npm install",
   "framework": "nextjs",
   
   "functions": {
     "src/app/api/**/*.ts": {
       "maxDuration": 60
     }
-  },
-  
-  "env": {
-    "NODE_ENV": "production"
   },
   
   "headers": [
@@ -58,8 +51,6 @@
       "destination": "/api/monitoring"
     }
   ],
-  
-  "regions": ["cle1", "iad1", "pdx1", "sfo1"],
   
   "cleanUrls": true,
   "trailingSlash": false
