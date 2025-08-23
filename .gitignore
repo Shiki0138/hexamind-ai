@@ -1,6 +1,8 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Night Shift AI - .gitignore
 
-# dependencies
+# =================================
+# Dependencies
+# =================================
 /node_modules
 /.pnp
 .pnp.*
@@ -10,32 +12,132 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
+# =================================
+# Testing
+# =================================
 /coverage
+/jest-coverage/
+*.lcov
 
-# next.js
+# =================================
+# Next.js
+# =================================
 /.next/
 /out/
+.next/
+out/
 
-# production
+# =================================
+# Production builds
+# =================================
 /build
+/dist
 
-# misc
-.DS_Store
+# =================================
+# Environment variables & Secrets
+# =================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# API keys and secrets (additional security)
+*.key
 *.pem
+*.p8
+secrets.json
+config/secrets.*
 
-# debug
+# =================================
+# Logs
+# =================================
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+lerna-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# =================================
+# Temporary files
+# =================================
+*.tmp
+*.temp
+temp/
+tmp/
 
-# vercel
+# =================================
+# OS generated files
+# =================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# =================================
+# Editor & IDE files
+# =================================
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# =================================
+# Deployment
+# =================================
 .vercel
+.netlify
+.firebase/
 
-# typescript
+# =================================
+# TypeScript
+# =================================
 *.tsbuildinfo
 next-env.d.ts
+
+# =================================
+# Database
+# =================================
+*.sqlite
+*.db
+database.sql
+
+# =================================
+# Monitoring & Analytics
+# =================================
+.sentry/
+
+# =================================
+# Backup files
+# =================================
+*.bak
+*.backup
+
+# =================================
+# Local configuration overrides
+# =================================
+local.json
+local.config.js
+local.config.ts
+
+# =================================
+# Security scans
+# =================================
+.snyk
+security-scan-results.json
+
+# =================================
+# Certificate files
+# =================================
+*.crt
+*.cer
+*.p12
+*.pfx

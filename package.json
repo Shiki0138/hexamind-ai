@@ -1,5 +1,5 @@
 {
-  "name": "ai-board-meeting",
+  "name": "hexamind-ai",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,19 +9,38 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@headlessui/react": "^2.2.7",
+    "@heroicons/react": "^2.2.0",
+    "@sentry/nextjs": "^10.5.0",
+    "@supabase/supabase-js": "^2.56.0",
+    "@types/puppeteer": "^5.4.7",
+    "@types/uuid": "^10.0.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.23.12",
+    "lucide-react": "^0.541.0",
+    "next": "15.5.0",
+    "next-auth": "^4.24.11",
+    "openai": "^5.15.0",
+    "puppeteer": "^24.17.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "next": "15.5.0"
+    "react-hot-toast": "^2.6.0",
+    "stripe": "^18.4.0",
+    "tailwind-merge": "^3.3.1",
+    "uuid": "^11.1.0",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.5.0",
-    "@eslint/eslintrc": "^3"
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
