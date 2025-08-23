@@ -434,25 +434,29 @@ export class PremiumSubscriptionEngine {
     thinkingMode: string,
     round: number
   ): Promise<string> {
-    // 実際のGemini Ultra API統合
-    const { GoogleGenerativeAI } = require('@google/generative-ai');
+    // Gemini Ultra API統合（環境変数が設定されている場合のみ）
+    const geminiApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
     
-    if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
-      throw new Error('Gemini API key not configured');
+    if (!geminiApiKey || geminiApiKey === 'your-gemini-key' || geminiApiKey === 'not-set') {
+      // APIキーが未設定の場合はGPT-4にフォールバック
+      return this.generateWithClaude(agent, topic, thinkingMode, round);
     }
 
-    const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-
-    const prompt = this.buildAgentPrompt(agent, topic, thinkingMode, round);
-    
     try {
+      // Dynamic importでbuild時の初期化を回避
+      const { GoogleGenerativeAI } = await import('@google/generative-ai');
+      const genAI = new GoogleGenerativeAI(geminiApiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+
+      const prompt = this.buildAgentPrompt(agent, topic, thinkingMode, round);
+      
       const result = await model.generateContent(prompt);
       const response = await result.response;
       return response.text();
     } catch (error) {
       console.error('Gemini Ultra API error:', error);
-      throw new Error(`Gemini Ultra failed: ${error.message}`);
+      // Gemini エラー時はClaude/GPT-4にフォールバック
+      return this.generateWithClaude(agent, topic, thinkingMode, round);
     }
   }
 
@@ -616,15 +620,18 @@ class BrowserSessionManager {
   }
 
   async executeGeminiUltraSession(params: any): Promise<string> {
-    try {
-      // 実際のGemini Ultra APIを使用
-      const { GoogleGenerativeAI } = require('@google/generative-ai');
-      
-      if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
-        throw new Error('Gemini API key not configured');
-      }
+    const geminiApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+    
+    if (!geminiApiKey || geminiApiKey === 'your-gemini-key' || geminiApiKey === 'not-set') {
+      // APIキーが未設定の場合はフォールバック
+      return this.executeClaude3OpusSession(params);
+    }
 
-      const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+    try {
+      // Dynamic importでbuild時の初期化を回避
+      const { GoogleGenerativeAI } = await import('@google/generative-ai');
+
+      const genAI = new GoogleGenerativeAI(geminiApiKey);
       const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
       const result = await model.generateContent(params.prompt);
