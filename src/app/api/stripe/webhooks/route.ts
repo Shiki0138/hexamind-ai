@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { StripeWebhookHandler, stripe } from '@/lib/stripe';
 
+// 動的ルートとして設定（ビルド時の静的解析を回避）
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(request: NextRequest) {

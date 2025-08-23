@@ -4,6 +4,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-system';
 import * as Sentry from '@sentry/nextjs';
 
+// 動的ルートとして設定（ビルド時の静的解析を回避）
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 // レート制限とセキュリティのための設定
 const RATE_LIMIT = {
   requests: 10, // 1時間あたりの最大リクエスト数

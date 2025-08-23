@@ -4,6 +4,10 @@ import { StripeService } from '@/lib/stripe';
 import { DatabaseService } from '@/lib/supabase';
 import { authOptions } from '@/lib/auth-system';
 
+// 動的ルートとして設定（ビルド時の静的解析を回避）
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
