@@ -443,16 +443,18 @@ export class PremiumSubscriptionEngine {
     }
 
     try {
-      // Dynamic importでbuild時の初期化を回避
-      const { GoogleGenerativeAI } = await import('@google/generative-ai');
-      const genAI = new GoogleGenerativeAI(geminiApiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-
+      // 安全なGeminiラッパーを使用
+      const { generateWithGemini } = await import('./gemini-safe');
       const prompt = this.buildAgentPrompt(agent, topic, thinkingMode, round);
       
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      return response.text();
+      const result = await generateWithGemini(geminiApiKey, prompt);
+      
+      if (result) {
+        return result;
+      } else {
+        // Gemini が利用できない場合はフォールバック
+        return this.generateWithClaude(agent, topic, thinkingMode, round);
+      }
     } catch (error) {
       console.error('Gemini Ultra API error:', error);
       // Gemini エラー時はClaude/GPT-4にフォールバック
@@ -628,17 +630,16 @@ class BrowserSessionManager {
     }
 
     try {
-      // Dynamic importでbuild時の初期化を回避
-      const { GoogleGenerativeAI } = await import('@google/generative-ai');
-
-      const genAI = new GoogleGenerativeAI(geminiApiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-
-      const result = await model.generateContent(params.prompt);
-      const response = await result.response;
-      const text = response.text();
+      // 安全なGeminiラッパーを使用
+      const { generateWithGemini } = await import('./gemini-safe');
+      const result = await generateWithGemini(geminiApiKey, params.prompt);
       
-      return `[Gemini Ultra] ${text}`;
+      if (result) {
+        return `[Gemini Ultra] ${result}`;
+      } else {
+        // Gemini が利用できない場合はフォールバック
+        return this.executeClaude3OpusSession(params);
+      }
     } catch (error) {
       console.warn('Gemini Ultra API failed, falling back to simulation:', error);
       
