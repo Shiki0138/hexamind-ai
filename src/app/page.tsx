@@ -8,9 +8,11 @@ import DiscussionScreen from '../components/screens/DiscussionScreen'
 import RealDiscussionScreen from '../components/screens/RealDiscussionScreen'
 import PremiumDiscussionScreen from '../components/screens/PremiumDiscussionScreen'
 import ResultsScreen from '../components/screens/ResultsScreen'
+import HistoryScreen from '../components/screens/HistoryScreen'
 import { ErrorBoundary } from '../components/ErrorBoundary'
+import { chatHistory } from '../lib/chat-history'
 
-type Screen = 'home' | 'agents' | 'question' | 'discussion' | 'results'
+type Screen = 'home' | 'agents' | 'question' | 'discussion' | 'results' | 'history'
 
 export default function Home() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home')
@@ -19,15 +21,14 @@ export default function Home() {
   const [useRealAI, setUseRealAI] = useState(false)
   const [usePremium, setUsePremium] = useState(false)
   const [thinkingMode, setThinkingMode] = useState<'normal' | 'deepthink' | 'creative' | 'critical'>('normal')
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
 
   const navigateToScreen = (screen: Screen) => {
     setCurrentScreen(screen)
   }
 
   const handleAgentsSelected = (agents: string[]) => {
-    console.log('handleAgentsSelected called with:', agents)
     setSelectedAgents(agents)
-    console.log('Setting screen to question')
     setCurrentScreen('question')
   }
 
@@ -36,6 +37,17 @@ export default function Home() {
     setThinkingMode(selectedThinkingMode)
     setUseRealAI(realAI)
     setUsePremium(premium)
+    
+    // 新しいセッションを作成
+    const session = chatHistory.createSession(
+      question,
+      selectedAgents,
+      selectedThinkingMode,
+      mode,
+      premium
+    )
+    setCurrentSessionId(session.id)
+    
     setCurrentScreen('discussion')
   }
 
@@ -50,13 +62,12 @@ export default function Home() {
   }
 
   const renderScreen = () => {
-    console.log('Current screen:', currentScreen)
     switch (currentScreen) {
       case 'home':
         return (
           <HomeScreen
             onStartDiscussion={() => navigateToScreen('agents')}
-            onViewHistory={() => {}}
+            onViewHistory={() => navigateToScreen('history')}
           />
         )
       case 'agents':
@@ -70,7 +81,7 @@ export default function Home() {
         return (
           <QuestionInputScreen
             selectedAgents={selectedAgents}
-            onSubmit={handleQuestionSubmitted}
+            onStartDiscussion={handleQuestionSubmitted}
             onBack={() => navigateToScreen('agents')}
           />
         )
@@ -81,6 +92,7 @@ export default function Home() {
             agents={selectedAgents}
             thinkingMode={thinkingMode}
             onComplete={handleDiscussionComplete}
+            sessionId={currentSessionId}
           />
         ) : useRealAI ? (
           <RealDiscussionScreen
@@ -89,12 +101,14 @@ export default function Home() {
             thinkingMode={thinkingMode}
             onComplete={handleDiscussionComplete}
             openaiApiKey={process.env.NEXT_PUBLIC_OPENAI_API_KEY}
+            sessionId={currentSessionId}
           />
         ) : (
           <DiscussionScreen
             topic={discussionTopic}
             agents={selectedAgents}
             onComplete={handleDiscussionComplete}
+            sessionId={currentSessionId}
           />
         )
       case 'results':
@@ -104,8 +118,18 @@ export default function Home() {
             onHome={() => navigateToScreen('home')}
           />
         )
+      case 'history':
+        return (
+          <HistoryScreen
+            onBack={() => navigateToScreen('home')}
+            onViewSession={(sessionId) => {
+              // セッション詳細表示機能（今後実装）
+              console.log('View session:', sessionId)
+            }}
+          />
+        )
       default:
-        return <HomeScreen onStartDiscussion={() => navigateToScreen('agents')} onViewHistory={() => {}} />
+        return <HomeScreen onStartDiscussion={() => navigateToScreen('agents')} onViewHistory={() => navigateToScreen('history')} />
     }
   }
 

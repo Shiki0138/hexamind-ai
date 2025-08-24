@@ -186,17 +186,7 @@ export default function AgentSelectionScreen({ onBack, onNext, onAgentsSelected 
           <Button
             className="w-full"
             disabled={selectedAgents.length === 0}
-            onClick={() => {
-              console.log('Button clicked with agents:', selectedAgents);
-              console.log('onNext:', onNext);
-              console.log('onAgentsSelected:', onAgentsSelected);
-              const handler = onNext || onAgentsSelected;
-              if (handler) {
-                handler(selectedAgents);
-              } else {
-                console.error('No handler found for next button');
-              }
-            }}
+            onClick={() => (onNext || onAgentsSelected)?.(selectedAgents)}
             rightIcon={<ArrowRightIcon className="h-4 w-4" />}
           >
             次へ（{selectedAgents.length}名選択中）
