@@ -8,6 +8,7 @@ import DiscussionScreen from '../components/screens/DiscussionScreen'
 import RealDiscussionScreen from '../components/screens/RealDiscussionScreen'
 import PremiumDiscussionScreen from '../components/screens/PremiumDiscussionScreen'
 import ResultsScreen from '../components/screens/ResultsScreen'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 
 type Screen = 'home' | 'agents' | 'question' | 'discussion' | 'results'
 
@@ -24,7 +25,9 @@ export default function Home() {
   }
 
   const handleAgentsSelected = (agents: string[]) => {
+    console.log('handleAgentsSelected called with:', agents)
     setSelectedAgents(agents)
+    console.log('Setting screen to question')
     setCurrentScreen('question')
   }
 
@@ -47,6 +50,7 @@ export default function Home() {
   }
 
   const renderScreen = () => {
+    console.log('Current screen:', currentScreen)
     switch (currentScreen) {
       case 'home':
         return (
@@ -106,8 +110,10 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-900">
-      {renderScreen()}
-    </main>
+    <ErrorBoundary>
+      <main className="min-h-screen bg-slate-900">
+        {renderScreen()}
+      </main>
+    </ErrorBoundary>
   )
 }
