@@ -310,17 +310,16 @@ export class AIDiscussionEngine {
 
     // 最終的な総括
     try {
-      const summaryResponse = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+      const summary = await this.callAIAPI({
         messages: [
           { role: 'system', content: 'この議論の要点と合意点、推奨されるアクションをまとめてください。' },
           ...this.conversationHistory.slice(-10)
         ],
+        model: 'gpt-4o-mini',
         max_tokens: 300,
         temperature: 0.3
       });
 
-      const summary = summaryResponse.choices[0]?.message?.content || '';
       if (summary.trim()) {
         yield {
           agent: '議論総括',
