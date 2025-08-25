@@ -872,13 +872,9 @@ ${specializedPrompt.analysisFramework.slice(0, 3).join('\n')}` : ''}
     
     // フェーズ2: 相互議論（動的に内容に応じて発言）
     let discussionIterations = 0;
-    const maxIterations = 15; // 追加のセーフガード（最大15回の発言）
-    const discussionStartTime = Date.now();
-    const maxDiscussionTime = 5 * 60 * 1000; // 5分のタイムアウト
+    const maxIterations = 20; // 適度な上限（強制終了は削除、自然な流れを重視）
     
-    while (orchestrator.shouldContinueDiscussion() && 
-           discussionIterations < maxIterations &&
-           (Date.now() - discussionStartTime) < maxDiscussionTime) {
+    while (orchestrator.shouldContinueDiscussion() && discussionIterations < maxIterations) {
       discussionIterations++;
       // 最後の発言内容に基づいて次の発言者を動的に選択
       const lastMessage = this.conversationHistory[this.conversationHistory.length - 1];
