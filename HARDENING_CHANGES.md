@@ -24,6 +24,14 @@ Purpose: improve security and reliability without changing features or menus.
 - Integrated into `src/app/api/ai/discussion/route.ts` without changing API shape; returns HTTP 429 with standard rate headers when exceeded.
 - Designed for Stage A (<= ~5 users). Future migration path: swap storage to Redis/KV without touching API handler logic.
 
+## 6) Reasoning quality templates (non-breaking)
+- Added role/debate/output helpers:
+  - `src/lib/agent-templates.ts` (Researcher, Finance, DTC Ops, Retail, Media, Legal, CMO)
+  - `src/lib/debate-protocol.ts` (rounds + rubric, synthesis flow)
+  - `src/lib/output-specs.ts` (preferred final sections)
+  - `src/lib/research-hints.ts` (non-networked RAG hints)
+- Updated `src/lib/ai-agents.ts` to expose `composeDebatePrompts()` helper for internal use. No changes to routes, UI, or API contracts.
+
 ## Notes
 - No changes to routes, APIs, configurations, or menus. All adjustments are internal quality improvements.
 - Next steps (optional, separate PRs): server-side rate limiting, CSP header, stronger env validation with schema, provider typing.

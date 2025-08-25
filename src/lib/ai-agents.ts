@@ -1,6 +1,10 @@
 import OpenAI from 'openai';
 import { SPECIALIZED_AGENT_PROMPTS, generateBusinessCasePrompt, generateInteractionPrompt } from './specialized-agents';
 import { selectOptimalModel, getMaxTokensForModel } from './model-config';
+import { buildRolePrompt } from './agent-templates';
+import { buildDebateSystemPrompt } from './debate-protocol';
+import { OutputSections } from './output-specs';
+import { ResearchHints } from './research-hints';
 
 // AIエージェントの定義
 export interface Agent {
@@ -758,6 +762,8 @@ export class AIDiscussionEngine {
     const selectedModel = selectOptimalModel(topic, thinkingMode, false);
     
     // 議論の初期設定
+    // Use enhanced internal debate scaffolding (non-breaking)
+    const debate = composeDebatePrompts(topic);
     const systemMessage = `以下のトピックについて、複数のAIエージェントが役員会議を開催します。
 
 トピック: ${topic}
@@ -772,7 +778,12 @@ export class AIDiscussionEngine {
 2. 互いの意見に対して反応・質問する
 3. 最終的な合意点や推奨事項をまとめる
 
-各発言は十分な深さと具体性を持って行ってください。`;
+各発言は十分な深さと具体性を持って行ってください。
+
+【高品質化の内部指示】
+${debate.system}
+最終統合は次のセクション構成を参考にしてください: ${debate.preferredStructure}
+${debate.researchHints}`;
 
     this.conversationHistory = [{ role: 'system', content: systemMessage }];
 
@@ -793,10 +804,12 @@ export class AIDiscussionEngine {
         const enhancedSystemPrompt = specializedPrompt 
           ? `${agent.systemPrompt}\n\n${specializedPrompt.systemPrompt}`
           : agent.systemPrompt;
+        const roleBooster = debate.roles.join('\n\n');
 
         const response = await this.callAIAPI({
           messages: [
             { role: 'system', content: enhancedSystemPrompt },
+            { role: 'system', content: roleBooster },
             { role: 'system', content: `現在の議論トピック: ${topic}` },
             { role: 'system', content: `検討アプローチ: ${THINKING_MODE_PROMPTS[this.thinkingMode]}` },
             { role: 'user', content: `このトピックについて、あなたの専門分野からの初期分析を詳細に述べてください。必ず以下の点を含めてください：
@@ -863,10 +876,12 @@ ${specializedPrompt ? `分析フレームワーク: ${specializedPrompt.analysis
           const enhancedSystemPrompt = specializedPrompt 
             ? `${agent.systemPrompt}\n\n${specializedPrompt.systemPrompt}`
             : agent.systemPrompt;
+          const roleBooster = debate.roles.join('\n\n');
 
           const response = await this.callAIAPI({
             messages: [
               { role: 'system', content: enhancedSystemPrompt },
+              { role: 'system', content: roleBooster },
               { role: 'system', content: `現在の議論トピック: ${topic}` },
               { role: 'system', content: `検討アプローチ: ${THINKING_MODE_PROMPTS[this.thinkingMode]}` },
               ...recentHistory,
@@ -945,6 +960,7 @@ ${interactionPrompt}
 ## 成功指標
 - [測定可能な成功指標1]
 - [測定可能な成功指標2]` },
+          { role: 'system', content: debate.preferredStructure },
           ...this.conversationHistory.slice(-10)
         ],
         model: selectedModel,
@@ -1010,4 +1026,20 @@ ${interactionPrompt}
       consensus: "多角的な視点から検討した結果、バランスの取れた戦略的アプローチが必要という合意に至りました。"
     };
   }
+}
+
+// Helper: compose higher-quality system prompts without changing external behavior
+export function composeDebatePrompts(userGoal: string) {
+  const system = buildDebateSystemPrompt(userGoal);
+  const roles = [
+    buildRolePrompt('researcher', userGoal),
+    buildRolePrompt('finance', userGoal),
+    buildRolePrompt('dtcOps', userGoal),
+    buildRolePrompt('retail', userGoal),
+    buildRolePrompt('media', userGoal),
+    buildRolePrompt('legal', userGoal),
+    buildRolePrompt('cmo', userGoal),
+  ];
+  const preferredStructure = `Please structure the final synthesis using these sections: ${OutputSections.join(' | ')}.`;
+  return { system, roles, preferredStructure, researchHints: ResearchHints };
 }
