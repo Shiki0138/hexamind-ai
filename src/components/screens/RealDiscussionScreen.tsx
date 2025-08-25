@@ -45,6 +45,7 @@ export default function RealDiscussionScreen({
     summary: string;
     decisions: string[];
     actionItems: string[];
+    agentSummaries: { agent: string; keyPoints: string[] }[];
   } | null>(null);
 
   const agentColors: Record<string, string> = {
@@ -67,8 +68,64 @@ export default function RealDiscussionScreen({
     '議論総括': '📋'
   };
 
+  // 各エージェントのメッセージから要点を抽出
+  const extractAgentKeyPoints = (messages: Message[]): { agent: string; keyPoints: string[] }[] => {
+    const agentMessages = new Map<string, string[]>();
+    
+    // エージェントごとにメッセージをグループ化（議論総括は除外）
+    messages.forEach(msg => {
+      if (msg.agent !== '議論総括') {
+        if (!agentMessages.has(msg.agent)) {
+          agentMessages.set(msg.agent, []);
+        }
+        agentMessages.get(msg.agent)!.push(msg.message);
+      }
+    });
+
+    // 各エージェントの要点を抽出
+    const summaries: { agent: string; keyPoints: string[] }[] = [];
+    
+    agentMessages.forEach((messages, agent) => {
+      const keyPoints: string[] = [];
+      
+      messages.forEach(message => {
+        // 重要な文を抽出（句読点で区切って、重要なキーワードを含む文を選択）
+        const sentences = message.split(/[。！？]/).filter(s => s.trim().length > 20);
+        
+        sentences.forEach(sentence => {
+          const trimmed = sentence.trim();
+          // 重要なキーワードを含む文を要点として抽出
+          if (
+            trimmed.includes('必要') ||
+            trimmed.includes('重要') ||
+            trimmed.includes('リスク') ||
+            trimmed.includes('提案') ||
+            trimmed.includes('べき') ||
+            trimmed.includes('推奨') ||
+            trimmed.includes('懸念') ||
+            trimmed.includes('機会') ||
+            trimmed.includes('効果') ||
+            trimmed.includes('戦略') ||
+            trimmed.length < 100 // 短くて要点がまとまっている文
+          ) {
+            keyPoints.push(trimmed);
+          }
+        });
+      });
+
+      // 重複を除いて最大3つの要点に絞る
+      const uniqueKeyPoints = Array.from(new Set(keyPoints)).slice(0, 3);
+      
+      if (uniqueKeyPoints.length > 0) {
+        summaries.push({ agent, keyPoints: uniqueKeyPoints });
+      }
+    });
+
+    return summaries;
+  };
+
   // 議論総括メッセージから要約情報を抽出
-  const extractDiscussionSummary = (summaryText: string) => {
+  const extractDiscussionSummary = (summaryText: string, allMessages: Message[]) => {
     const sections = summaryText.split(/\n\n/);
     let summary = '';
     let decisions: string[] = [];
@@ -93,7 +150,10 @@ export default function RealDiscussionScreen({
       summary = summaryText.split('\n')[0].trim();
     }
 
-    return { summary, decisions, actionItems };
+    // 各エージェントの要点を抽出
+    const agentSummaries = extractAgentKeyPoints(allMessages);
+
+    return { summary, decisions, actionItems, agentSummaries };
   };
 
   // 最初に質問の明確性を分析
@@ -202,7 +262,7 @@ export default function RealDiscussionScreen({
 
       // 議論結果から要約を抽出
       if (summaryMessage) {
-        const extractedSummary = extractDiscussionSummary(summaryMessage.message);
+        const extractedSummary = extractDiscussionSummary(summaryMessage.message, allMessages);
         setDiscussionSummary(extractedSummary);
         
         // セッション終了と保存
@@ -380,9 +440,34 @@ export default function RealDiscussionScreen({
                 議論結果サマリー
               </h3>
               
+              {/* 各エージェントの要点 */}
+              {discussionSummary.agentSummaries.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="font-semibold text-yellow-300 mb-3">各部門の主要な見解</h4>
+                  <div className="space-y-3">
+                    {discussionSummary.agentSummaries.map((agentSummary, index) => (
+                      <div key={index} className="bg-slate-800/50 rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg">{agentAvatars[agentSummary.agent] || '🤖'}</span>
+                          <span className="font-semibold text-sm">{agentSummary.agent}</span>
+                        </div>
+                        <ul className="space-y-1 text-sm text-gray-300">
+                          {agentSummary.keyPoints.map((point, pointIndex) => (
+                            <li key={pointIndex} className="flex items-start gap-2">
+                              <span className="text-gray-500 mt-0.5">•</span>
+                              <span>{point}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
               {/* 総括 */}
               <div className="mb-6">
-                <h4 className="font-semibold text-purple-300 mb-2">総括</h4>
+                <h4 className="font-semibold text-purple-300 mb-2">全体総括</h4>
                 <p className="text-gray-300 leading-relaxed">{discussionSummary.summary}</p>
               </div>
 
