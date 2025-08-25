@@ -10,7 +10,7 @@ export const runtime = 'nodejs';
 
 // レート制限とセキュリティのための設定
 const RATE_LIMIT = {
-  requests: 10, // 1時間あたりの最大リクエスト数
+  requests: 100, // 1時間あたりの最大リクエスト数（10→100に増加）
   windowMs: 60 * 60 * 1000, // 1時間
 };
 
@@ -23,25 +23,37 @@ function checkRateLimit(clientId: string): boolean {
   
   if (!userLimit || now > userLimit.resetTime) {
     rateLimitMap.set(clientId, { count: 1, resetTime: now + RATE_LIMIT.windowMs });
+    console.log(`Rate limit reset for client: ${clientId}`);
     return true;
   }
   
   if (userLimit.count >= RATE_LIMIT.requests) {
+    console.log(`Rate limit exceeded for client: ${clientId}, count: ${userLimit.count}/${RATE_LIMIT.requests}`);
     return false;
   }
   
   userLimit.count++;
+  console.log(`Rate limit check for client: ${clientId}, count: ${userLimit.count}/${RATE_LIMIT.requests}`);
   return true;
 }
 
+// レート制限を手動でリセットする関数
+function resetRateLimit(clientId: string): void {
+  rateLimitMap.delete(clientId);
+  console.log(`Rate limit manually reset for client: ${clientId}`);
+}
+
 export async function POST(request: NextRequest) {
+  // clientIdをtryブロックの外で宣言
+  let clientId = 'anonymous';
+  
   try {
     // セッション確認（オプション：認証が必要な場合）
     const session = await getServerSession(authOptions);
     
     // リクエストの検証
     const body = await request.json();
-    const { messages, model = 'gpt-4o-mini', temperature = 0.7, max_tokens = 200 } = body;
+    const { messages, model = 'gpt-3.5-turbo', temperature = 0.7, max_tokens = 150 } = body;
     
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -51,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
     
     // レート制限チェック
-    const clientId = session?.user?.email || request.ip || 'anonymous';
+    clientId = session?.user?.email || request.ip || 'anonymous';
     if (!checkRateLimit(clientId)) {
       return NextResponse.json(
         { error: '1時間あたりのリクエスト制限に達しました。しばらくお待ちください。' }, 
@@ -72,12 +84,30 @@ export async function POST(request: NextRequest) {
     console.log('API Key length:', process.env.OPENAI_API_KEY.length);
     console.log('API Key prefix:', process.env.OPENAI_API_KEY.substring(0, 10) + '...');
     
+    // OpenAI組織IDの確認
+    if (process.env.OPENAI_ORGANIZATION) {
+      console.log('OpenAI Organization ID:', process.env.OPENAI_ORGANIZATION);
+    } else {
+      console.log('No OpenAI Organization ID set');
+    }
+    
     // OpenAIクライアントの初期化（サーバーサイドのみ）
     let openai;
     try {
-      openai = new OpenAI({
+      const clientConfig: any = {
         apiKey: process.env.OPENAI_API_KEY,
-      });
+      };
+      
+      // Organization IDがある場合は追加
+      if (process.env.OPENAI_ORGANIZATION) {
+        clientConfig.organization = process.env.OPENAI_ORGANIZATION;
+      }
+      
+      openai = new OpenAI(clientConfig);
+      
+      // APIキーの有効性を確認するための簡単なテスト
+      console.log('Testing OpenAI API connection...');
+      
     } catch (initError) {
       console.error('OpenAI initialization error:', initError);
       return NextResponse.json(
@@ -135,11 +165,12 @@ export async function POST(request: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
     // OpenAI APIエラーの場合は特別な処理
-    if (error instanceof Error && error.message.includes('rate limit')) {
+    if (error instanceof Error && (error.message.includes('rate limit') || error.message.includes('exceeded your current quota'))) {
       return NextResponse.json(
         { 
-          error: 'AIサービスのレート制限に達しました。しばらく時間をおいてから再度お試しください。',
-          retryAfter: 60,
+          error: 'OpenAI APIの利用制限に達しました。APIキーの請求状況を確認してください。',
+          details: 'OpenAI APIのクォータまたはレート制限に達しています。https://platform.openai.com/account/billing で請求状況とAPI使用量を確認してください。',
+          retryAfter: 3600,
         }, 
         { status: 429 }
       );
@@ -177,9 +208,37 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const action = searchParams.get('action');
+  const clientIdParam = searchParams.get('clientId');
+  
+  if (action === 'reset' && clientIdParam) {
+    // レート制限をリセット
+    resetRateLimit(clientIdParam);
+    return NextResponse.json({
+      success: true,
+      message: `Rate limit reset for client: ${clientIdParam}`
+    });
+  }
+  
+  if (action === 'status') {
+    // 現在のレート制限状況を表示
+    const stats = Array.from(rateLimitMap.entries()).map(([id, limit]) => ({
+      clientId: id,
+      count: limit.count,
+      resetTime: new Date(limit.resetTime).toISOString(),
+      remaining: Math.max(0, RATE_LIMIT.requests - limit.count)
+    }));
+    
+    return NextResponse.json({
+      rateLimit: RATE_LIMIT,
+      clients: stats
+    });
+  }
+  
   return NextResponse.json(
-    { error: 'GET method not allowed' }, 
+    { error: 'GET method not allowed. Use ?action=status or ?action=reset&clientId=xxx' }, 
     { status: 405 }
   );
 }
