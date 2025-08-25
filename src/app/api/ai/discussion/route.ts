@@ -12,8 +12,10 @@ export const runtime = 'nodejs';
 // 1-minute 20-requests in-memory limiter is enforced via src/lib/rate-limit
 
 export async function POST(request: NextRequest) {
-  // clientIdをtryブロックの外で宣言
+  // tryブロック外で参照される可能性のある値を初期化
   let clientId = 'anonymous';
+  let modelUsed: string = 'unknown';
+  let messageCount: number = 0;
   
   try {
     // セッション確認（オプション：認証が必要な場合）
@@ -21,7 +23,11 @@ export async function POST(request: NextRequest) {
     
     // リクエストの検証
     const body = await request.json();
-    const { messages, model = 'gpt-3.5-turbo', temperature = 0.7, max_tokens = 150 } = body;
+    const { messages, model = 'gpt-4o-mini', temperature = 0.7, max_tokens = 2000 } = body;
+
+    // 以降のログ/エラーハンドリング用に値を保存
+    modelUsed = model;
+    messageCount = Array.isArray(messages) ? messages.length : 0;
     
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -122,8 +128,8 @@ export async function POST(request: NextRequest) {
       },
       extra: {
         clientId,
-        modelUsed: model,
-        messageCount: messages.length,
+        modelUsed,
+        messageCount,
       },
     });
     

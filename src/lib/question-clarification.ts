@@ -10,12 +10,12 @@ async function callAIAPI(messages: Array<{ role: 'system' | 'user' | 'assistant'
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      messages,
-      model: 'gpt-3.5-turbo',
-      temperature: 0.7,
-      max_tokens: 500
-    }),
+  body: JSON.stringify({
+    messages,
+    model: 'gpt-4o-mini',
+    temperature: 0.7,
+    max_tokens: 500
+  }),
   });
 
   if (!response.ok) {

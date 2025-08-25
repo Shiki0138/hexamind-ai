@@ -5,6 +5,8 @@ import { buildRolePrompt } from './agent-templates';
 import { buildDebateSystemPrompt } from './debate-protocol';
 import { OutputSections } from './output-specs';
 import { ResearchHints } from './research-hints';
+import { DiscussionOrchestrator } from './discussion-orchestrator';
+import { ENHANCED_AGENT_BEHAVIORS } from './enhanced-prompts';
 
 // AIエージェントの定義
 export interface Agent {
@@ -791,8 +793,8 @@ ${debate.researchHints}`;
   }
 
   private async *generateDiscussion(agents: Agent[], topic: string, selectedModel: string): AsyncGenerator<{ agent: string; message: string; timestamp: Date }> {
-    let round = 0;
-    const maxRounds = 5; // 議論のラウンド数を調整
+    const orchestrator = new DiscussionOrchestrator(topic);
+    let lastSpeaker = '';
     
     // フェーズ1: 初期意見（全員が発言）
     for (const agent of agents) {
@@ -801,8 +803,9 @@ ${debate.researchHints}`;
         const specializedPrompt = SPECIALIZED_AGENT_PROMPTS[agent.name];
         const businessCasePrompt = generateBusinessCasePrompt(topic, agent.name);
         
+        const enhancedBehavior = ENHANCED_AGENT_BEHAVIORS[agent.name];
         const enhancedSystemPrompt = specializedPrompt 
-          ? `${agent.systemPrompt}\n\n${specializedPrompt.systemPrompt}`
+          ? `${agent.systemPrompt}\n\n${specializedPrompt.systemPrompt}\n\n${enhancedBehavior?.discussionStyle || ''}`
           : agent.systemPrompt;
         const currentDebate = composeDebatePrompts(topic);
         const roleBooster = currentDebate.roles.join('\n\n');
@@ -813,15 +816,25 @@ ${debate.researchHints}`;
             { role: 'system', content: roleBooster },
             { role: 'system', content: `現在の議論トピック: ${topic}` },
             { role: 'system', content: `検討アプローチ: ${THINKING_MODE_PROMPTS[this.thinkingMode]}` },
-            { role: 'user', content: `このトピックについて、あなたの専門分野からの初期分析を詳細に述べてください。必ず以下の点を含めてください：
-1. あなたの専門分野から見た機会とリスク
-2. 具体的な数値やデータに基づいた分析
-3. 他の部門への影響や懸念事項
-4. 初期的な提案や推奨事項
+            { role: 'user', content: `【${agent.name}として発言】
+
+このトピックについて、あなたの専門分野からの初期分析を詳細に述べてください。
+
+${enhancedBehavior ? `【発言スタイル】
+${enhancedBehavior.argumentPatterns[0]}` : ''}
+
+必ず以下の点を含めてください：
+1. あなたの専門分野から見た機会とリスク（具体的な数値を含む）
+2. 過去の類似事例や業界ベンチマーク
+3. 他の部門への影響や協力が必要な点
+4. 具体的で実行可能な提案（タイムライン付き）
 
 ${businessCasePrompt}
 
-${specializedPrompt ? `分析フレームワーク: ${specializedPrompt.analysisFramework.join(', ')}` : ''}` }
+${specializedPrompt ? `【活用すべき分析フレームワーク】
+${specializedPrompt.analysisFramework.slice(0, 3).join('\n')}` : ''}
+
+重要：あなたの専門性を最大限に発揮し、他の役員が反応しやすい具体的な論点を提示してください。` }
           ],
           model: selectedModel,
           max_tokens: getMaxTokensForModel(selectedModel, 'initial'),
@@ -858,12 +871,20 @@ ${specializedPrompt ? `分析フレームワーク: ${specializedPrompt.analysis
     }
     
     // フェーズ2: 相互議論（動的に内容に応じて発言）
-    while (round < maxRounds) {
-      // 各ラウンドで最も関連性の高いエージェントが発言
-      const discussionAgents = this.selectRelevantAgents(agents, round);
+    while (orchestrator.shouldContinueDiscussion()) {
+      // 最後の発言内容に基づいて次の発言者を動的に選択
+      const lastMessage = this.conversationHistory[this.conversationHistory.length - 1];
+      const nextSpeaker = orchestrator.selectNextSpeaker(
+        agents, 
+        lastSpeaker,
+        lastMessage?.content || ''
+      );
+      lastSpeaker = nextSpeaker.name;
+      orchestrator.updatePhase();
       
-      for (const agent of discussionAgents) {
-        try {
+      const agent = nextSpeaker;
+      
+      try {
           const recentHistory = this.conversationHistory.slice(-10);
           // 前の発言者との相互作用プロンプトを生成
           const lastMessage = recentHistory[recentHistory.length - 1];
@@ -874,9 +895,10 @@ ${specializedPrompt ? `分析フレームワーク: ${specializedPrompt.analysis
           
           // 専門的なプロンプトを取得
           const specializedPrompt = SPECIALIZED_AGENT_PROMPTS[agent.name];
-          const enhancedSystemPrompt = specializedPrompt 
-            ? `${agent.systemPrompt}\n\n${specializedPrompt.systemPrompt}`
-            : agent.systemPrompt;
+          const enhancedBehavior = ENHANCED_AGENT_BEHAVIORS[agent.name];
+          const orchestratorPrompt = orchestrator.generateEnhancedPrompt(agent, recentHistory);
+          
+          const enhancedSystemPrompt = `${agent.systemPrompt}\n\n${specializedPrompt?.systemPrompt || ''}\n\n${orchestratorPrompt}`;
           const currentDebate = composeDebatePrompts(topic);
           const roleBooster = currentDebate.roles.join('\n\n');
 
@@ -887,15 +909,26 @@ ${specializedPrompt ? `分析フレームワーク: ${specializedPrompt.analysis
               { role: 'system', content: `現在の議論トピック: ${topic}` },
               { role: 'system', content: `検討アプローチ: ${THINKING_MODE_PROMPTS[this.thinkingMode]}` },
               ...recentHistory,
-              { role: 'user', content: `これまでの議論を踏まえ、以下の点についてあなたの専門的見地から発言してください：
-1. 他の参加者の意見に対する具体的な反応や質問
-2. 新たに明らかになったリスクや機会
-3. あなたの専門分野からの追加分析や提案
-4. 合意点や意見の相違点の明確化
+              { role: 'user', content: `【${agent.name}として発言】
+
+前の発言者の具体的な内容を引用して反応してください。
+
+${enhancedBehavior ? `【あなたの議論スタイル】
+${enhancedBehavior.argumentPatterns[Math.floor(Math.random() * enhancedBehavior.argumentPatterns.length)]}` : ''}
+
+これまでの議論を踏まえ、以下のように発言してください：
+
+1. 前の発言者の「○○」という指摘について、あなたの専門的見地から...
+2. その上で、私からは以下の点を追加したい...
+3. ただし、リスクとしては...
+4. 具体的なアクションとしては...
 
 ${interactionPrompt}
 
-发言は必ず具体的で実質的な内容を含め、議論を深めるようにしてください。` }
+${enhancedBehavior ? `【使える質問例】
+- ${enhancedBehavior.interactionRules[0]}` : ''}
+
+重要：必ず前の発言の具体的な部分を引用し、それに対して専門的な知見を加えてください。抽象的な同意や反対ではなく、具体的な数値、事例、代替案を提示してください。` }
             ],
             model: selectedModel,
             max_tokens: getMaxTokensForModel(selectedModel, 'discussion'),
@@ -919,12 +952,10 @@ ${interactionPrompt}
 
             await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 1000));
           }
-        } catch (error) {
-          console.error(`Error generating response for ${agent.name}:`, error);
-        }
+      } catch (error) {
+        console.error(`Error generating response for ${agent.name}:`, error);
       }
-      round++;
-    }
+    }  // while loop end
 
     // 最終的な総括
     try {

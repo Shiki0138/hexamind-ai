@@ -12,6 +12,13 @@ export interface ModelConfig {
 }
 
 export const AI_MODELS: Record<string, ModelConfig> = {
+  'gpt-4o-mini': {
+    name: 'gpt-4o-mini',
+    displayName: 'GPT-4o Mini',
+    maxTokens: 128000,
+    costPer1kTokens: 0.002, // 目安: 低コスト帯
+    quality: 'advanced'
+  },
   'gpt-3.5-turbo': {
     name: 'gpt-3.5-turbo',
     displayName: 'GPT-3.5 Turbo',
@@ -74,24 +81,24 @@ export function selectOptimalModel(
     return isComplex ? 'gpt-4-turbo' : 'gpt-4';
   }
 
-  // デフォルトはGPT-3.5 Turbo
-  return 'gpt-3.5-turbo';
+  // デフォルトはGPT-4o Mini
+  return 'gpt-4o-mini';
 }
 
 /**
  * モデルに応じたmax_tokensを取得
  */
 export function getMaxTokensForModel(model: string, useCase: 'initial' | 'discussion' | 'summary'): number {
-  const modelConfig = AI_MODELS[model] || AI_MODELS['gpt-3.5-turbo'];
+  const modelConfig = AI_MODELS[model] || AI_MODELS['gpt-4o-mini'];
   
   switch (useCase) {
     case 'initial':
-      return Math.min(1200, modelConfig.maxTokens);
+      return Math.min(2500, modelConfig.maxTokens);
     case 'discussion':
-      return Math.min(800, modelConfig.maxTokens);
+      return Math.min(2000, modelConfig.maxTokens);
     case 'summary':
-      return Math.min(1000, modelConfig.maxTokens);
+      return Math.min(1500, modelConfig.maxTokens);
     default:
-      return 800;
+      return 1500;
   }
 }
