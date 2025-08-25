@@ -84,7 +84,9 @@ export default function QuestionInputScreen({
 
   const handleSubmit = (premium = false) => {
     if (question.trim()) {
-      onStartDiscussion(question.trim(), mode, thinkingMode, false, premium, context.trim() || undefined);
+      // premiumがtrueの場合はrealAIもtrueにする
+      const useRealAI = premium || true; // 常にreal AIを使用
+      onStartDiscussion(question.trim(), mode, thinkingMode, useRealAI, premium, context.trim() || undefined);
     }
   };
 
