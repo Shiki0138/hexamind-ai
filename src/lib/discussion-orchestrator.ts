@@ -181,13 +181,13 @@ ${sampleQuestions}
    */
   shouldContinueDiscussion(): boolean {
     const convergence = this.evaluateConvergence();
-    const minRounds = 4;
-    const maxRounds = 8;
+    const minRounds = 3;  // 最小ラウンドを短縮
+    const maxRounds = 5;  // 最大ラウンドを短縮（8→5）
     
     if (this.context.round < minRounds) return true;
     if (this.context.round >= maxRounds) return false;
     
-    // 収束度が低い場合は議論を続ける
-    return convergence < 0.7;
+    // 収束度の閾値を下げて早期終了しやすくする（0.7→0.5）
+    return convergence < 0.5;
   }
 }

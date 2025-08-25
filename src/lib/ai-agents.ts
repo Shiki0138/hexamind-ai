@@ -871,7 +871,15 @@ ${specializedPrompt.analysisFramework.slice(0, 3).join('\n')}` : ''}
     }
     
     // フェーズ2: 相互議論（動的に内容に応じて発言）
-    while (orchestrator.shouldContinueDiscussion()) {
+    let discussionIterations = 0;
+    const maxIterations = 15; // 追加のセーフガード（最大15回の発言）
+    const discussionStartTime = Date.now();
+    const maxDiscussionTime = 5 * 60 * 1000; // 5分のタイムアウト
+    
+    while (orchestrator.shouldContinueDiscussion() && 
+           discussionIterations < maxIterations &&
+           (Date.now() - discussionStartTime) < maxDiscussionTime) {
+      discussionIterations++;
       // 最後の発言内容に基づいて次の発言者を動的に選択
       const lastMessage = this.conversationHistory[this.conversationHistory.length - 1];
       const nextSpeaker = orchestrator.selectNextSpeaker(
