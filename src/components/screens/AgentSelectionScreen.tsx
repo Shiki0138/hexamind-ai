@@ -17,6 +17,7 @@ interface Agent {
 }
 
 const AGENTS: Agent[] = [
+  // 経営・戦略
   {
     id: 'ceo',
     name: 'CEO（戦略責任者）',
@@ -27,6 +28,17 @@ const AGENTS: Agent[] = [
     category: '経営・戦略'
   },
   {
+    id: 'cso',
+    name: 'CSO（戦略企画責任者）',
+    role: '戦略立案・競争優位性',
+    description: '中長期戦略の立案と競合分析',
+    color: 'bg-indigo-500',
+    emoji: '🎲',
+    category: '経営・戦略'
+  },
+  
+  // 財務・投資
+  {
     id: 'cfo',
     name: 'CFO（財務責任者）',
     role: '財務分析・投資判断',
@@ -36,14 +48,45 @@ const AGENTS: Agent[] = [
     category: '財務・投資'
   },
   {
+    id: 'cio',
+    name: 'CIO（投資責任者）',
+    role: '投資戦略・ポートフォリオ',
+    description: 'M&Aと戦略的投資の評価',
+    color: 'bg-violet-500',
+    emoji: '💎',
+    category: '財務・投資'
+  },
+  
+  // マーケティング・顧客
+  {
     id: 'cmo',
     name: 'CMO（マーケティング責任者）',
     role: '市場分析・顧客戦略',
     description: '市場トレンドと顧客ニーズを分析',
     color: 'bg-pink-500',
     emoji: '📊',
-    category: 'マーケティング'
+    category: 'マーケティング・顧客'
   },
+  {
+    id: 'cxo',
+    name: 'CXO（顧客体験責任者）',
+    role: '顧客体験・満足度',
+    description: 'カスタマージャーニーとUX最適化',
+    color: 'bg-rose-500',
+    emoji: '🎭',
+    category: 'マーケティング・顧客'
+  },
+  {
+    id: 'cbo',
+    name: 'CBO（ブランド責任者）',
+    role: 'ブランド戦略・価値向上',
+    description: 'ブランドエクイティとポジショニング',
+    color: 'bg-fuchsia-500',
+    emoji: '🏆',
+    category: 'マーケティング・顧客'
+  },
+  
+  // 技術・イノベーション
   {
     id: 'cto',
     name: 'CTO（技術責任者）',
@@ -51,8 +94,48 @@ const AGENTS: Agent[] = [
     description: '技術トレンドとシステム最適化',
     color: 'bg-cyan-500',
     emoji: '💻',
-    category: '技術・システム'
+    category: '技術・イノベーション'
   },
+  {
+    id: 'cdo',
+    name: 'CDO（デジタル責任者）',
+    role: 'DX戦略・デジタル変革',
+    description: 'デジタルトランスフォーメーション推進',
+    color: 'bg-teal-500',
+    emoji: '🚀',
+    category: '技術・イノベーション'
+  },
+  {
+    id: 'caio',
+    name: 'CAIO（AI責任者）',
+    role: 'AI戦略・機械学習',
+    description: 'AI活用と自動化戦略',
+    color: 'bg-sky-500',
+    emoji: '🤖',
+    category: '技術・イノベーション'
+  },
+  
+  // 人材・組織
+  {
+    id: 'chro',
+    name: 'CHRO（人事責任者）',
+    role: '人材戦略・組織開発',
+    description: 'タレントマネジメントと組織文化',
+    color: 'bg-amber-500',
+    emoji: '👥',
+    category: '人材・組織'
+  },
+  {
+    id: 'clo',
+    name: 'CLO（学習責任者）',
+    role: '人材育成・スキル開発',
+    description: '組織学習とキャリア開発戦略',
+    color: 'bg-yellow-500',
+    emoji: '📚',
+    category: '人材・組織'
+  },
+  
+  // 運営・効率化
   {
     id: 'coo',
     name: 'COO（執行責任者）',
@@ -62,6 +145,48 @@ const AGENTS: Agent[] = [
     emoji: '⚙️',
     category: '運営・効率化'
   },
+  {
+    id: 'csco',
+    name: 'CSCO（サプライチェーン責任者）',
+    role: 'SCM戦略・物流最適化',
+    description: 'サプライチェーンの効率化とリスク管理',
+    color: 'bg-emerald-500',
+    emoji: '🚛',
+    category: '運営・効率化'
+  },
+  
+  // リスク・コンプライアンス
+  {
+    id: 'cro',
+    name: 'CRO（リスク管理責任者）',
+    role: 'リスク評価・危機管理',
+    description: '企業リスクの特定と対策立案',
+    color: 'bg-orange-500',
+    emoji: '🛡️',
+    category: 'リスク・コンプライアンス'
+  },
+  {
+    id: 'cco',
+    name: 'CCO（コンプライアンス責任者）',
+    role: '法令遵守・倫理',
+    description: '規制対応とコーポレートガバナンス',
+    color: 'bg-stone-500',
+    emoji: '⚖️',
+    category: 'リスク・コンプライアンス'
+  },
+  
+  // リサーチ・インテリジェンス
+  {
+    id: 'researcher',
+    name: 'りさちゃん（リサーチャー）',
+    role: 'インターネット検索・情報収集',
+    description: 'Google検索とファクトチェックのスペシャリスト',
+    color: 'bg-lime-500',
+    emoji: '🔍',
+    category: 'リサーチ・インテリジェンス'
+  },
+  
+  // 特別アドバイザー
   {
     id: 'devil',
     name: '悪魔の代弁者',
@@ -80,7 +205,7 @@ interface AgentSelectionScreenProps {
 }
 
 export default function AgentSelectionScreen({ onBack, onNext, onAgentsSelected }: AgentSelectionScreenProps) {
-  const [selectedAgents, setSelectedAgents] = useState<string[]>(['ceo', 'cfo', 'devil']);
+  const [selectedAgents, setSelectedAgents] = useState<string[]>(['ceo', 'cfo', 'cto', 'cmo', 'devil', 'researcher']);
 
   const toggleAgent = (agentId: string) => {
     setSelectedAgents(prev => {
