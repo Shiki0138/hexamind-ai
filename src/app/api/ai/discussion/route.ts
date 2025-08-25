@@ -61,18 +61,33 @@ export async function POST(request: NextRequest) {
     
     // OpenAI APIキーの確認
     if (!process.env.OPENAI_API_KEY) {
+      console.error('OPENAI_API_KEY is not set in environment variables');
       return NextResponse.json(
         { error: 'OpenAI APIキーが設定されていません' }, 
         { status: 500 }
       );
     }
     
+    // APIキーの形式を確認（デバッグ用）
+    console.log('API Key length:', process.env.OPENAI_API_KEY.length);
+    console.log('API Key prefix:', process.env.OPENAI_API_KEY.substring(0, 10) + '...');
+    
     // OpenAIクライアントの初期化（サーバーサイドのみ）
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    let openai;
+    try {
+      openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+    } catch (initError) {
+      console.error('OpenAI initialization error:', initError);
+      return NextResponse.json(
+        { error: 'OpenAIクライアントの初期化に失敗しました', details: initError instanceof Error ? initError.message : 'Unknown error' }, 
+        { status: 500 }
+      );
+    }
     
     // APIコール
+    console.log('Calling OpenAI API with model:', model, 'messages:', messages.length);
     const completion = await openai.chat.completions.create({
       model,
       messages,
@@ -90,6 +105,11 @@ export async function POST(request: NextRequest) {
     
   } catch (error) {
     console.error('OpenAI API Error:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      type: error?.constructor?.name,
+    });
     
     // Sentryにエラーを送信
     Sentry.captureException(error, {
@@ -125,14 +145,25 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // APIキーが設定されていない場合の特別なエラーメッセージ
-    if (errorMessage.includes('API key')) {
+    // APIキー関連のエラーの特別な処理
+    if (errorMessage.includes('API key') || errorMessage.includes('Incorrect API key')) {
       return NextResponse.json(
         { 
-          error: 'OpenAI APIキーが設定されていません。Vercelの環境変数にOPENAI_API_KEYを設定してください。',
+          error: 'OpenAI APIキーが無効です。正しいAPIキーがVercelの環境変数に設定されているか確認してください。',
           details: errorMessage
         }, 
         { status: 500 }
+      );
+    }
+    
+    // 認証エラーの場合
+    if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+      return NextResponse.json(
+        { 
+          error: 'OpenAI APIの認証に失敗しました。APIキーが有効か確認してください。',
+          details: errorMessage
+        }, 
+        { status: 401 }
       );
     }
     
