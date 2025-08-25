@@ -707,6 +707,11 @@ export class AIDiscussionEngine {
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
+        console.log(`[AI Discussion] API呼び出し試行 ${attempt + 1}/${maxRetries}`, {
+          model: params.model,
+          messagesCount: params.messages.length
+        });
+        
         const response = await fetch('/api/ai/discussion', {
           method: 'POST',
           headers: {
@@ -739,6 +744,12 @@ export class AIDiscussionEngine {
         }
 
         const data = await response.json();
+        console.log('[AI Discussion] APIレスポンス受信:', {
+          success: data.success,
+          provider: data.provider,
+          model: data.model,
+          responseLength: data.response?.length || 0
+        });
         return data.response || '';
         
       } catch (error) {
@@ -757,6 +768,13 @@ export class AIDiscussionEngine {
   }
 
   async *startDiscussion(topic: string, selectedAgentIds: string[], thinkingMode: ThinkingMode = 'normal'): AsyncGenerator<{ agent: string; message: string; timestamp: Date }> {
+    console.log('[AI Discussion] 議論開始:', {
+      topic: topic.substring(0, 50) + '...',
+      agentIds: selectedAgentIds,
+      thinkingMode,
+      timestamp: new Date().toISOString()
+    });
+    
     const selectedAgents = selectedAgentIds.map(id => AI_AGENTS[id]).filter(Boolean);
     this.thinkingMode = thinkingMode;
     

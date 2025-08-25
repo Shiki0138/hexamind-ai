@@ -48,6 +48,14 @@ export async function POST(request: NextRequest) {
     const isGeminiModel = model.includes('gemini');
     const isOpenAIModel = model.includes('gpt') || model.includes('o1');
     
+    console.log('[API Route] モデル判定:', {
+      requestedModel: model,
+      isGeminiModel,
+      isOpenAIModel,
+      hasGoogleKey: !!process.env.GOOGLE_AI_API_KEY,
+      hasOpenAIKey: !!process.env.OPENAI_API_KEY
+    });
+    
     if (isGeminiModel && !process.env.GOOGLE_AI_API_KEY) {
       console.error('GOOGLE_AI_API_KEY is not set in environment variables');
       return NextResponse.json(
