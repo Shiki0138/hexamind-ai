@@ -781,7 +781,7 @@ export class AIDiscussionEngine {
 3. 他の部門への影響や懸念事項
 4. 初期的な提案や推奨事項` }
           ],
-          model: 'gpt-4o-mini',
+          model: 'gpt-3.5-turbo',
           max_tokens: 800,
           temperature: this.thinkingMode === 'creative' ? 0.9 : this.thinkingMode === 'critical' ? 0.7 : 0.8
         });
@@ -837,7 +837,7 @@ export class AIDiscussionEngine {
 
 发言は必ず具体的で実質的な内容を含め、議論を深めるようにしてください。` }
             ],
-            model: 'gpt-4o-mini',
+            model: 'gpt-3.5-turbo',
             max_tokens: 600,
             temperature: this.thinkingMode === 'creative' ? 0.9 : this.thinkingMode === 'critical' ? 0.7 : 0.8
           });
@@ -880,11 +880,32 @@ export class AIDiscussionEngine {
 5. 実行にあたっての留意事項
 6. 期待される成果と成功指標
 
-総括は具体的で実行可能な内容にし、各部門の専門的見解を統合した包括的なものにしてください。` },
+以下のフォーマットで構造化してください：
+
+## 議論の総括
+[議論全体のサマリーを2-3文で]
+
+## 合意事項・決定事項
+- [具体的な合意事項1]
+- [具体的な合意事項2]
+- [具体的な合意事項3]
+
+## アクションアイテム
+1. [具体的で実行可能なアクション1]
+2. [具体的で実行可能なアクション2]
+3. [具体的で実行可能なアクション3]
+
+## リスクと対策
+- [特定されたリスク1]: [対策]
+- [特定されたリスク2]: [対策]
+
+## 成功指標
+- [測定可能な成功指標1]
+- [測定可能な成功指標2]` },
           ...this.conversationHistory.slice(-10)
         ],
-        model: 'gpt-4o-mini',
-        max_tokens: 600,
+        model: 'gpt-3.5-turbo',
+        max_tokens: 800,
         temperature: 0.3
       });
 

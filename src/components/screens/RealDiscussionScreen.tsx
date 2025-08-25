@@ -8,6 +8,7 @@ import { AIDiscussionEngine, AI_AGENTS, ThinkingMode } from '@/lib/ai-agents';
 import { analyzeQuestionClarity, createDiscussionPromptWithContext, ClarificationContext } from '@/lib/question-clarification';
 import QuestionClarificationDialog from '@/components/QuestionClarificationDialog';
 import DiscussionVisualizer from '@/components/DiscussionVisualizer';
+import { ChatHistoryManager } from '@/lib/chat-history';
 
 interface Message {
   id: string;
@@ -39,6 +40,12 @@ export default function RealDiscussionScreen({
   const [clarificationContext, setClarificationContext] = useState<ClarificationContext | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentSpeaker, setCurrentSpeaker] = useState<string | undefined>();
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [discussionSummary, setDiscussionSummary] = useState<{
+    summary: string;
+    decisions: string[];
+    actionItems: string[];
+  } | null>(null);
 
   const agentColors: Record<string, string> = {
     'CEO AI': 'bg-purple-500',
@@ -58,6 +65,35 @@ export default function RealDiscussionScreen({
     'COO AI': '⚙️',
     '悪魔の代弁者': '😈',
     '議論総括': '📋'
+  };
+
+  // 議論総括メッセージから要約情報を抽出
+  const extractDiscussionSummary = (summaryText: string) => {
+    const sections = summaryText.split(/\n\n/);
+    let summary = '';
+    let decisions: string[] = [];
+    let actionItems: string[] = [];
+
+    sections.forEach(section => {
+      if (section.includes('合意事項') || section.includes('決定事項')) {
+        const items = section.split('\n').slice(1);
+        decisions = items.filter(item => item.trim().startsWith('-') || item.trim().startsWith('・'))
+          .map(item => item.replace(/^[-・]\s*/, '').trim());
+      } else if (section.includes('アクション') || section.includes('実行項目')) {
+        const items = section.split('\n').slice(1);
+        actionItems = items.filter(item => item.trim().match(/^\d+\.|^[-・]/))
+          .map(item => item.replace(/^\d+\.\s*|^[-・]\s*/, '').trim());
+      } else if (section.includes('総括') || section.includes('まとめ')) {
+        summary = section.split('\n').slice(1).join(' ').trim();
+      }
+    });
+
+    // サマリーが空の場合は全体から抽出
+    if (!summary) {
+      summary = summaryText.split('\n')[0].trim();
+    }
+
+    return { summary, decisions, actionItems };
   };
 
   // 最初に質問の明確性を分析
@@ -109,15 +145,23 @@ export default function RealDiscussionScreen({
 
     try {
       const engine = new AIDiscussionEngine();
+      const chatHistory = new ChatHistoryManager();
+      
       // コンテキストがある場合は拡張された質問を使用
       const discussionTopic = context 
         ? createDiscussionPromptWithContext(topic, context)
         : topic;
       
+      // セッション開始
+      const newSessionId = chatHistory.startSession(discussionTopic, agents, thinkingMode, 'real');
+      setSessionId(newSessionId);
+      
       const discussionGenerator = engine.startDiscussion(discussionTopic, agents, thinkingMode);
       
       let messageCount = 0;
       const expectedMessages = agents.length * 4; // 各エージェント約4回発言
+      let allMessages: Message[] = [];
+      let summaryMessage: Message | null = null;
 
       for await (const result of discussionGenerator) {
         // 現在の発言者を設定
@@ -130,7 +174,22 @@ export default function RealDiscussionScreen({
           timestamp: result.timestamp
         };
 
+        allMessages.push(newMessage);
         setMessages(prev => [...prev, newMessage]);
+        
+        // チャット履歴に追加
+        chatHistory.addMessage({
+          role: 'agent' as const,
+          agentId: result.agent,
+          content: result.message,
+          timestamp: result.timestamp
+        });
+        
+        // 議論総括の場合は保存
+        if (result.agent === '議論総括') {
+          summaryMessage = newMessage;
+        }
+        
         messageCount++;
         setProgress((messageCount / expectedMessages) * 100);
 
@@ -140,6 +199,20 @@ export default function RealDiscussionScreen({
       
       // 議論終了時に発言者をクリア
       setCurrentSpeaker(undefined);
+
+      // 議論結果から要約を抽出
+      if (summaryMessage) {
+        const extractedSummary = extractDiscussionSummary(summaryMessage.message);
+        setDiscussionSummary(extractedSummary);
+        
+        // セッション終了と保存
+        chatHistory.endSession(
+          newSessionId,
+          extractedSummary.summary,
+          extractedSummary.decisions,
+          extractedSummary.actionItems
+        );
+      }
 
       setProgress(100);
     } catch (error) {
@@ -294,6 +367,60 @@ export default function RealDiscussionScreen({
           </AnimatePresence>
         </div>
 
+        {/* 議論結果サマリー */}
+        {!isRunning && discussionSummary && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6"
+          >
+            <Card className="p-6 bg-gradient-to-br from-purple-900/20 to-blue-900/20 border-purple-700/50">
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <span className="text-2xl">📊</span>
+                議論結果サマリー
+              </h3>
+              
+              {/* 総括 */}
+              <div className="mb-6">
+                <h4 className="font-semibold text-purple-300 mb-2">総括</h4>
+                <p className="text-gray-300 leading-relaxed">{discussionSummary.summary}</p>
+              </div>
+
+              {/* 決定事項 */}
+              {discussionSummary.decisions.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="font-semibold text-green-300 mb-2">決定事項</h4>
+                  <ul className="space-y-2">
+                    {discussionSummary.decisions.map((decision, index) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <span className="text-green-400 mt-0.5">✓</span>
+                        <span className="text-gray-300">{decision}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* アクションアイテム */}
+              {discussionSummary.actionItems.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-blue-300 mb-2">アクションアイテム</h4>
+                  <ol className="space-y-2">
+                    {discussionSummary.actionItems.map((action, index) => (
+                      <li key={index} className="flex items-start gap-3">
+                        <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm flex-shrink-0">
+                          {index + 1}
+                        </span>
+                        <span className="text-gray-300">{action}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+            </Card>
+          </motion.div>
+        )}
+
         {/* 完了ボタン */}
         {!isRunning && messages.length > 0 && (
           <motion.div
@@ -302,7 +429,7 @@ export default function RealDiscussionScreen({
             className="text-center"
           >
             <Button onClick={onComplete} className="w-full max-w-md">
-              結果を確認する
+              詳細な結果を確認する
             </Button>
           </motion.div>
         )}
