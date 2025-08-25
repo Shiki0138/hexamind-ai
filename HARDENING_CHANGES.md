@@ -32,6 +32,15 @@ Purpose: improve security and reliability without changing features or menus.
   - `src/lib/research-hints.ts` (non-networked RAG hints)
 - Updated `src/lib/ai-agents.ts` to expose `composeDebatePrompts()` helper for internal use. No changes to routes, UI, or API contracts.
 
+## 7) Phase 2 hardening
+- KV-ready rate limit store:
+  - Added `src/lib/rate-limit-store.ts` with `MemoryRateLimitStore` and `RedisRateLimitStore` (placeholder interface).
+  - Refactored `src/lib/rate-limit.ts` to use a pluggable store; auto-selects Redis when `RATE_LIMIT_REDIS_URL` is set.
+- CSP enforcement:
+  - Updated `vercel.json` to include a conservative `Content-Security-Policy`. Adjust `connect-src` if additional domains are needed (e.g., Stripe).
+- Env schema warnings (prod):
+  - Enhanced `src/lib/env-sanity.ts` to emit an extra production warning when required env vars are missing (non-breaking).
+
 ## Notes
 - No changes to routes, APIs, configurations, or menus. All adjustments are internal quality improvements.
 - Next steps (optional, separate PRs): server-side rate limiting, CSP header, stronger env validation with schema, provider typing.

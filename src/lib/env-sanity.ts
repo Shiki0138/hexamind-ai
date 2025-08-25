@@ -33,6 +33,10 @@ export function logEnvSanity() {
         missing.join(', '),
         `| NODE_ENV=${process.env.NODE_ENV}`
       );
+      if (isProd) {
+        // eslint-disable-next-line no-console
+        console.warn('[env] Production warning: Some required env vars are missing. App will continue, but certain features may be disabled.');
+      }
     }
   } catch (e) {
     // eslint-disable-next-line no-console
@@ -44,4 +48,3 @@ export function logEnvSanity() {
 if (typeof window === 'undefined') {
   logEnvSanity();
 }
-

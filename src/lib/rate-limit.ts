@@ -2,18 +2,13 @@
 // Keyed by userId (if available) else IP, per-endpoint.
 // Rule: 20 requests per 60s window.
 
-type Identifier = string; // userId or ip
+import { selectStore } from './rate-limit-store';
 
-type Counter = {
-  windowStartMs: number;
-  count: number;
-};
+type Identifier = string; // userId or ip
 
 const WINDOW_MS = 60_000;
 const LIMIT_PER_WINDOW = 20;
-
-// Map key: `${endpoint}:${identifier}:${windowStartMs}`
-const counters = new Map<string, Counter>();
+const store = selectStore();
 
 function getClientIp(req: Request): string | undefined {
   try {
@@ -35,22 +30,15 @@ export type RateLimitResult = {
   limit: number;
 };
 
-export function checkRate(req: Request, ctx: RateLimitContext): RateLimitResult {
+export async function checkRate(req: Request, ctx: RateLimitContext): Promise<RateLimitResult> {
   const now = Date.now();
-  const windowStartMs = Math.floor(now / WINDOW_MS) * WINDOW_MS;
-  const reset = windowStartMs + WINDOW_MS - now;
-
   let id: Identifier | undefined = ctx.identifier;
   if (!id) id = getClientIp(req) || 'anonymous';
-
-  const key = `${ctx.endpoint}:${id}:${windowStartMs}`;
-  const current = counters.get(key) || { windowStartMs, count: 0 };
-  current.count += 1;
-  counters.set(key, current);
-
-  const allowed = current.count <= LIMIT_PER_WINDOW;
-  const remaining = Math.max(0, LIMIT_PER_WINDOW - current.count);
-
+  const key = `${ctx.endpoint}:${id}`;
+  const { count, resetAt } = await store.incr(key, WINDOW_MS);
+  const allowed = count <= LIMIT_PER_WINDOW;
+  const remaining = Math.max(0, LIMIT_PER_WINDOW - count);
+  const reset = Math.max(0, resetAt - now);
   return { allowed, remaining, reset, limit: LIMIT_PER_WINDOW };
 }
 
@@ -64,7 +52,7 @@ export function buildRateHeaders(res: RateLimitResult): HeadersInit {
 }
 
 export async function enforceRateLimit(req: Request, ctx: RateLimitContext) {
-  const res = checkRate(req, ctx);
+  const res = await checkRate(req, ctx);
   if (!res.allowed) {
     return new Response(
       JSON.stringify({ error: 'rate_limited', message: 'Too many requests. Please try again shortly.' }),
@@ -73,4 +61,3 @@ export async function enforceRateLimit(req: Request, ctx: RateLimitContext) {
   }
   return null;
 }
-
