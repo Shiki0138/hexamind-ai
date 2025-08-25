@@ -144,6 +144,17 @@ export class ChatHistoryManager {
     }
   }
 
+  // セッションを開始（createSessionのエイリアス）
+  startSession(
+    topic: string,
+    agents: string[],
+    thinkingMode: string,
+    discussionMode: string,
+    isPremium: boolean
+  ): DiscussionSession {
+    return this.createSession(topic, agents, thinkingMode, discussionMode, isPremium);
+  }
+
   // セッションを取得
   getSession(sessionId: string): DiscussionSession | null {
     const sessions = this.getSessions();

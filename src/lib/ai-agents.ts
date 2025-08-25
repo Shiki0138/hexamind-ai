@@ -804,7 +804,8 @@ ${debate.researchHints}`;
         const enhancedSystemPrompt = specializedPrompt 
           ? `${agent.systemPrompt}\n\n${specializedPrompt.systemPrompt}`
           : agent.systemPrompt;
-        const roleBooster = debate.roles.join('\n\n');
+        const currentDebate = composeDebatePrompts(topic);
+        const roleBooster = currentDebate.roles.join('\n\n');
 
         const response = await this.callAIAPI({
           messages: [
@@ -876,7 +877,8 @@ ${specializedPrompt ? `分析フレームワーク: ${specializedPrompt.analysis
           const enhancedSystemPrompt = specializedPrompt 
             ? `${agent.systemPrompt}\n\n${specializedPrompt.systemPrompt}`
             : agent.systemPrompt;
-          const roleBooster = debate.roles.join('\n\n');
+          const currentDebate = composeDebatePrompts(topic);
+          const roleBooster = currentDebate.roles.join('\n\n');
 
           const response = await this.callAIAPI({
             messages: [
@@ -960,7 +962,7 @@ ${interactionPrompt}
 ## 成功指標
 - [測定可能な成功指標1]
 - [測定可能な成功指標2]` },
-          { role: 'system', content: debate.preferredStructure },
+          { role: 'system', content: composeDebatePrompts(topic).preferredStructure },
           ...this.conversationHistory.slice(-10)
         ],
         model: selectedModel,
