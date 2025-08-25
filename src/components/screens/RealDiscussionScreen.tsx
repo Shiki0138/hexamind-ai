@@ -245,9 +245,11 @@ export default function RealDiscussionScreen({
             <div className="space-y-2 text-sm text-slate-300">
               <p><strong>リアルAI議論：</strong> OpenAI APIを使用して実際のAIエージェントが議論を行います。</p>
               <p><strong>モック議論：</strong> 事前に用意されたサンプル議論を表示します。</p>
-              <p className="mt-4 p-3 bg-yellow-900 border border-yellow-700 rounded">
-                <strong>注意：</strong> リアルAI議論を使用するには、.env.localファイルにOPENAI_API_KEYを設定してください。
-              </p>
+              {!process.env.NEXT_PUBLIC_OPENAI_API_KEY && (
+                <p className="mt-4 p-3 bg-yellow-900 border border-yellow-700 rounded">
+                  <strong>注意：</strong> リアルAI議論を使用するには、環境変数にOPENAI_API_KEYを設定してください。
+                </p>
+              )}
             </div>
           </Card>
         )}
