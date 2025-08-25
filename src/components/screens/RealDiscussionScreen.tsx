@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { AIDiscussionEngine, AI_AGENTS, ThinkingMode } from '@/lib/ai-agents';
 import { analyzeQuestionClarity, createDiscussionPromptWithContext, ClarificationContext } from '@/lib/question-clarification';
 import QuestionClarificationDialog from '@/components/QuestionClarificationDialog';
+import DiscussionVisualizer from '@/components/DiscussionVisualizer';
 
 interface Message {
   id: string;
@@ -37,6 +38,7 @@ export default function RealDiscussionScreen({
   const [suggestedAspects, setSuggestedAspects] = useState<string[]>([]);
   const [clarificationContext, setClarificationContext] = useState<ClarificationContext | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [currentSpeaker, setCurrentSpeaker] = useState<string | undefined>();
 
   const agentColors: Record<string, string> = {
     'CEO AI': 'bg-purple-500',
@@ -118,6 +120,9 @@ export default function RealDiscussionScreen({
       const expectedMessages = agents.length * 4; // 各エージェント約4回発言
 
       for await (const result of discussionGenerator) {
+        // 現在の発言者を設定
+        setCurrentSpeaker(result.agent);
+        
         const newMessage: Message = {
           id: `msg-${result.agent}-${messages.length + 1}-${result.timestamp}`,
           agent: result.agent,
@@ -132,6 +137,9 @@ export default function RealDiscussionScreen({
         // UIの更新を少し待つ
         await new Promise(resolve => setTimeout(resolve, 100));
       }
+      
+      // 議論終了時に発言者をクリア
+      setCurrentSpeaker(undefined);
 
       setProgress(100);
     } catch (error) {
@@ -232,6 +240,13 @@ export default function RealDiscussionScreen({
             </Button>
           </div>
         </div>
+
+        {/* ディスカッションビジュアライザー */}
+        <DiscussionVisualizer 
+          isActive={isRunning}
+          currentSpeaker={currentSpeaker}
+          messages={messages}
+        />
 
         {/* エラー表示 */}
         {error && (

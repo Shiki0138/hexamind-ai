@@ -695,7 +695,7 @@ export class AIDiscussionEngine {
           },
           body: JSON.stringify(params),
           // タイムアウト設定
-          signal: AbortSignal.timeout(30000), // 30秒
+          signal: AbortSignal.timeout(60000), // 60秒に延長
         });
 
         if (!response.ok) {
