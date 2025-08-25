@@ -62,7 +62,7 @@ export default function PremiumDiscussionScreen({
         setCurrentStep(`${result.agent} が ${result.provider} で分析中...`);
         
         const newMessage: PremiumMessage = {
-          id: Date.now().toString() + Math.random(),
+          id: `premium-msg-${result.agent}-${messages.length + 1}-${result.timestamp}`,
           agent: result.agent,
           message: result.message,
           timestamp: result.timestamp,

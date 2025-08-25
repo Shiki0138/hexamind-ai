@@ -66,7 +66,7 @@ export default function RealDiscussionScreen({
 
       for await (const result of discussionGenerator) {
         const newMessage: Message = {
-          id: Date.now().toString() + Math.random(),
+          id: `msg-${result.agent}-${messages.length + 1}-${result.timestamp}`,
           agent: result.agent,
           message: result.message,
           timestamp: result.timestamp

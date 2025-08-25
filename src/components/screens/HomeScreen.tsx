@@ -39,9 +39,15 @@ export default function HomeScreen({
   const [recentDiscussions, setRecentDiscussions] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
   
-  const currentHour = new Date().getHours();
-  const greeting = currentHour < 12 ? 'おはようございます' : 
-                  currentHour < 18 ? 'こんにちは' : 'こんばんは';
+  const [greeting, setGreeting] = useState('こんにちは');
+  
+  useEffect(() => {
+    // クライアントサイドでのみ時間ベースの挨拶を設定
+    const currentHour = new Date().getHours();
+    const timeBasedGreeting = currentHour < 12 ? 'おはようございます' : 
+                             currentHour < 18 ? 'こんにちは' : 'こんばんは';
+    setGreeting(timeBasedGreeting);
+  }, []);
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.id) {
