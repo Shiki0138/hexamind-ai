@@ -787,10 +787,10 @@ ${debate.researchHints}`;
 
     this.conversationHistory = [{ role: 'system', content: systemMessage }];
 
-    yield* this.generateDiscussion(selectedAgents, topic);
+    yield* this.generateDiscussion(selectedAgents, topic, selectedModel);
   }
 
-  private async *generateDiscussion(agents: Agent[], topic: string): AsyncGenerator<{ agent: string; message: string; timestamp: Date }> {
+  private async *generateDiscussion(agents: Agent[], topic: string, selectedModel: string): AsyncGenerator<{ agent: string; message: string; timestamp: Date }> {
     let round = 0;
     const maxRounds = 5; // 議論のラウンド数を調整
     
