@@ -15,10 +15,10 @@ interface Message {
 }
 
 interface DiscussionScreenProps {
-  question: string;
-  selectedAgents: string[];
-  mode: string;
-  onComplete: (conclusion: any) => void;
+  topic: string;
+  agents: string[];
+  onComplete: () => void;
+  sessionId?: string | null;
 }
 
 // モックAIエージェント応答
@@ -50,10 +50,10 @@ const MOCK_RESPONSES = {
 };
 
 export default function DiscussionScreen({ 
-  question, 
-  selectedAgents, 
-  mode, 
-  onComplete 
+  topic, 
+  agents, 
+  onComplete,
+  sessionId
 }: DiscussionScreenProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentSpeaker, setCurrentSpeaker] = useState<string | null>(null);
@@ -62,11 +62,11 @@ export default function DiscussionScreen({
   // モック議論シミュレーション
   useEffect(() => {
     const simulateDiscussion = async () => {
-      const totalRounds = mode === 'speed' ? 1 : mode === 'balanced' ? 2 : 3;
+      const totalRounds = 2; // Fixed rounds for stable behavior
       let messageId = 0;
 
       for (let round = 0; round < totalRounds; round++) {
-        for (const agentId of selectedAgents) {
+        for (const agentId of agents) {
           if (AGENT_INFO[agentId as keyof typeof AGENT_INFO] && MOCK_RESPONSES[agentId as keyof typeof MOCK_RESPONSES]) {
             const agent = AGENT_INFO[agentId as keyof typeof AGENT_INFO];
             const responses = MOCK_RESPONSES[agentId as keyof typeof MOCK_RESPONSES];
@@ -92,7 +92,7 @@ export default function DiscussionScreen({
             setCurrentSpeaker(null);
             
             // プログレス更新
-            setProgress((messageId / (selectedAgents.length * totalRounds)) * 100);
+            setProgress((messageId / (agents.length * totalRounds)) * 100);
             
             // メッセージ間の間隔
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -102,20 +102,12 @@ export default function DiscussionScreen({
 
       // 議論完了
       setTimeout(() => {
-        onComplete({
-          conclusion: "段階的投資を推奨",
-          summary: "市場機会は確実に存在するが、リスク分散のため段階的なアプローチを取ることで、成功確率を高めつつROIを最大化できる",
-          votes: {
-            approve: selectedAgents.filter(id => id !== 'devil').length,
-            conditional: 1,
-            reject: selectedAgents.includes('devil') ? 1 : 0
-          }
-        });
+        onComplete();
       }, 2000);
     };
 
     simulateDiscussion();
-  }, [selectedAgents, mode, onComplete]);
+  }, [agents, onComplete]);
 
   return (
     <motion.div
@@ -147,7 +139,7 @@ export default function DiscussionScreen({
           </div>
           
           <p className="text-sm text-gray-600 mt-2 line-clamp-2">
-            {question}
+            {topic}
           </p>
         </div>
       </div>
