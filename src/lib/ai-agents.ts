@@ -699,7 +699,13 @@ export class AIDiscussionEngine {
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
+          let errorData;
+          try {
+            errorData = await response.json();
+          } catch (jsonError) {
+            // JSONパースエラーの場合
+            throw new Error(`APIエラー (${response.status}): レスポンスの解析に失敗しました`);
+          }
           
           // レート制限の場合は特別な処理
           if (response.status === 429) {
@@ -710,7 +716,7 @@ export class AIDiscussionEngine {
             }
           }
           
-          throw new Error(errorData.error || `APIエラー (${response.status})`);
+          throw new Error(errorData.error || errorData.details || `APIエラー (${response.status})`);
         }
 
         const data = await response.json();

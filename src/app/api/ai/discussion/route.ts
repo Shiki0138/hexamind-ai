@@ -125,10 +125,21 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // APIキーが設定されていない場合の特別なエラーメッセージ
+    if (errorMessage.includes('API key')) {
+      return NextResponse.json(
+        { 
+          error: 'OpenAI APIキーが設定されていません。Vercelの環境変数にOPENAI_API_KEYを設定してください。',
+          details: errorMessage
+        }, 
+        { status: 500 }
+      );
+    }
+    
     return NextResponse.json(
       { 
         error: 'AIディスカッション中にエラーが発生しました',
-        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        details: errorMessage // 常にエラーの詳細を返す
       }, 
       { status: 500 }
     );
