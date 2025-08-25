@@ -89,14 +89,13 @@ export class DiscussionOrchestrator {
   updatePhase(): void {
     const totalSpeaks = this.speakerHistory.length;
     
-    if (totalSpeaks < 6) {
-      this.context.phase = 'initial';
-    } else if (totalSpeaks < 12) {
-      this.context.phase = 'divergence';
-    } else if (totalSpeaks < 18) {
-      this.context.phase = 'convergence';
+    // 大幅に短縮（6人で合計10-12発言程度）
+    if (totalSpeaks <= 6) {
+      this.context.phase = 'initial';      // 各エージェント1回
+    } else if (totalSpeaks <= 9) {
+      this.context.phase = 'convergence';  // 3回追加発言で収束
     } else {
-      this.context.phase = 'synthesis';
+      this.context.phase = 'synthesis';    // 結論フェーズ
     }
   }
 
@@ -180,20 +179,24 @@ ${sampleQuestions}
    * 動的にラウンド数を決定
    */
   shouldContinueDiscussion(): boolean {
+    const totalSpeaks = this.speakerHistory.length;
     const convergence = this.evaluateConvergence();
-    const minRounds = 3;
-    const maxRounds = 6;  // 少し余裕を持たせる
     
-    if (this.context.round < minRounds) return true;
-    if (this.context.round >= maxRounds) return false;
+    // 発言回数による強制終了（6人で最大12発言）
+    const maxTotalSpeaks = 12;
+    if (totalSpeaks >= maxTotalSpeaks) return false;
     
-    // フェーズ別の継続判定
-    if (this.context.phase === 'synthesis') {
-      // 統合フェーズでは早期終了（1-2ラウンドで終了）
-      return this.context.round < 5;
+    // 各エージェントが最低1回発言したかチェック
+    const uniqueSpeakers = new Set(this.speakerHistory);
+    const minSpeaksPerAgent = 6; // 全員が1回ずつ
+    if (totalSpeaks < minSpeaksPerAgent) return true;
+    
+    // 統合フェーズでは2発言で終了
+    if (this.context.phase === 'synthesis' && totalSpeaks >= 10) {
+      return false;
     }
     
-    // 収束度チェック（0.6で適度な合意形成）
-    return convergence < 0.6;
+    // 適度な収束で終了
+    return convergence < 0.6 && totalSpeaks < 10;
   }
 }
