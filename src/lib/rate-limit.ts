@@ -7,7 +7,7 @@ import { selectStore } from './rate-limit-store';
 type Identifier = string; // userId or ip
 
 const WINDOW_MS = 60_000;
-const LIMIT_PER_WINDOW = 20;
+const LIMIT_PER_WINDOW = 50; // 20→50に増加（議論用に緩和）
 const store = selectStore();
 
 function getClientIp(req: Request): string | undefined {
