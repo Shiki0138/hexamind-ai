@@ -8,7 +8,7 @@ import { AIDiscussionEngine, AI_AGENTS, ThinkingMode } from '@/lib/ai-agents';
 import { analyzeQuestionClarity, createDiscussionPromptWithContext, ClarificationContext } from '@/lib/question-clarification';
 import QuestionClarificationDialog from '@/components/QuestionClarificationDialog';
 import DiscussionVisualizer from '@/components/DiscussionVisualizer';
-import { ChatHistoryManager } from '@/lib/chat-history';
+import { ChatHistoryManager } from '../../lib/chat-history';
 
 interface Message {
   id: string;
@@ -205,16 +205,30 @@ export default function RealDiscussionScreen({
 
     try {
       const engine = new AIDiscussionEngine();
-      const chatHistory = new ChatHistoryManager();
+      
+      // ChatHistoryManagerの初期化とエラーハンドリング
+      let chatHistory: ChatHistoryManager | null = null;
+      let newSessionId: string | null = null;
+      
+      try {
+        chatHistory = new ChatHistoryManager();
+        // コンテキストがある場合は拡張された質問を使用
+        const discussionTopic = context 
+          ? createDiscussionPromptWithContext(topic, context)
+          : topic;
+        
+        // セッション開始
+        newSessionId = chatHistory.startSession(discussionTopic, agents, thinkingMode, 'real');
+        setSessionId(newSessionId);
+      } catch (historyError) {
+        console.error('ChatHistory initialization error:', historyError);
+        // 履歴機能が使えなくても議論は続行
+      }
       
       // コンテキストがある場合は拡張された質問を使用
       const discussionTopic = context 
         ? createDiscussionPromptWithContext(topic, context)
         : topic;
-      
-      // セッション開始
-      const newSessionId = chatHistory.startSession(discussionTopic, agents, thinkingMode, 'real');
-      setSessionId(newSessionId);
       
       const discussionGenerator = engine.startDiscussion(discussionTopic, agents, thinkingMode);
       
@@ -238,12 +252,18 @@ export default function RealDiscussionScreen({
         setMessages(prev => [...prev, newMessage]);
         
         // チャット履歴に追加
-        chatHistory.addMessage({
-          role: 'agent' as const,
-          agentId: result.agent,
-          content: result.message,
-          timestamp: result.timestamp
-        });
+        if (chatHistory) {
+          try {
+            chatHistory.addMessage({
+              role: 'agent' as const,
+              agentId: result.agent,
+              content: result.message,
+              timestamp: result.timestamp
+            });
+          } catch (error) {
+            console.error('Failed to add message to history:', error);
+          }
+        }
         
         // 議論総括の場合は保存
         if (result.agent === '議論総括') {
@@ -266,12 +286,18 @@ export default function RealDiscussionScreen({
         setDiscussionSummary(extractedSummary);
         
         // セッション終了と保存
-        chatHistory.endSession(
-          newSessionId,
-          extractedSummary.summary,
-          extractedSummary.decisions,
-          extractedSummary.actionItems
-        );
+        if (chatHistory && newSessionId) {
+          try {
+            chatHistory.endSession(
+              newSessionId,
+              extractedSummary.summary,
+              extractedSummary.decisions,
+              extractedSummary.actionItems
+            );
+          } catch (error) {
+            console.error('Failed to end session:', error);
+          }
+        }
       }
 
       setProgress(100);
