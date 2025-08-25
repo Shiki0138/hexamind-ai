@@ -21,7 +21,7 @@ interface RealDiscussionScreenProps {
   topic: string;
   agents: string[];
   thinkingMode?: ThinkingMode;
-  onComplete: () => void;
+  onComplete: (sessionId?: string) => void;
 }
 
 export default function RealDiscussionScreen({
@@ -539,7 +539,7 @@ export default function RealDiscussionScreen({
             animate={{ opacity: 1 }}
             className="text-center"
           >
-            <Button onClick={onComplete} className="w-full max-w-md">
+            <Button onClick={() => onComplete(sessionId || undefined)} className="w-full max-w-md">
               詳細な結果を確認する
             </Button>
           </motion.div>

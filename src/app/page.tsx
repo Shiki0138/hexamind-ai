@@ -51,7 +51,10 @@ export default function Home() {
     setCurrentScreen('discussion')
   }
 
-  const handleDiscussionComplete = () => {
+  const handleDiscussionComplete = (sessionId?: string) => {
+    if (sessionId) {
+      setCurrentSessionId(sessionId)
+    }
     setCurrentScreen('results')
   }
 
@@ -114,6 +117,7 @@ export default function Home() {
       case 'results':
         return (
           <ResultsScreen
+            sessionId={currentSessionId}
             onNewDiscussion={handleNewDiscussion}
             onHome={() => navigateToScreen('home')}
           />

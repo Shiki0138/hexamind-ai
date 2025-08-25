@@ -1,35 +1,71 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { ChevronDownIcon, ShareIcon, BookmarkIcon } from '@heroicons/react/24/outline'
+import { ChatHistoryManager } from '../../lib/chat-history'
 
 interface ResultsScreenProps {
+  sessionId?: string | null
   onNewDiscussion: () => void
   onHome: () => void
 }
 
 const ResultsScreen: React.FC<ResultsScreenProps> = ({
+  sessionId,
   onNewDiscussion,
   onHome
 }) => {
-  const discussionSummary = {
-    topic: "Q4マーケティング戦略の見直し",
-    duration: "15分",
-    participants: ["CEO AI", "CMO AI", "CFO AI"],
-    keyPoints: [
-      "デジタルマーケティング予算を30%増加させる提案",
-      "新規顧客獲得コストの最適化が急務",
-      "競合他社の価格戦略に対する対応策が必要",
-      "ブランド認知度向上のための長期投資を検討"
-    ],
-    actionItems: [
-      "マーケティング部門との詳細な予算会議を来週設定",
-      "競合分析レポートを2週間以内に作成",
-      "顧客獲得コストの分析データを収集"
-    ],
-    consensus: "短期的な売上向上と長期的なブランド価値向上のバランスを取った戦略が必要"
-  }
+  const [discussionSummary, setDiscussionSummary] = useState({
+    topic: "読み込み中...",
+    duration: "計算中...",
+    participants: [] as string[],
+    keyPoints: [] as string[],
+    actionItems: [] as string[],
+    consensus: ""
+  })
+
+  useEffect(() => {
+    if (sessionId) {
+      const chatHistory = new ChatHistoryManager()
+      const sessions = chatHistory.getSessions()
+      const currentSession = sessions.find(s => s.id === sessionId)
+      
+      if (currentSession) {
+        const duration = currentSession.endedAt 
+          ? Math.round((new Date(currentSession.endedAt).getTime() - new Date(currentSession.startedAt).getTime()) / 1000 / 60)
+          : 0
+        
+        setDiscussionSummary({
+          topic: currentSession.topic,
+          duration: `${duration}分`,
+          participants: currentSession.agents,
+          keyPoints: currentSession.decisions || [],
+          actionItems: currentSession.actionItems || [],
+          consensus: currentSession.summary || "議論の要約を生成中..."
+        })
+      }
+    } else {
+      // セッションIDがない場合はモックデータを使用
+      setDiscussionSummary({
+        topic: "Q4マーケティング戦略の見直し",
+        duration: "15分",
+        participants: ["CEO AI", "CMO AI", "CFO AI"],
+        keyPoints: [
+          "デジタルマーケティング予算を30%増加させる提案",
+          "新規顧客獲得コストの最適化が急務",
+          "競合他社の価格戦略に対する対応策が必要",
+          "ブランド認知度向上のための長期投資を検討"
+        ],
+        actionItems: [
+          "マーケティング部門が新規デジタル広告戦略を1ヶ月以内に策定",
+          "財務部門が予算再配分案を2週間以内に提出",
+          "CEO承認後、実施チームを組成して推進"
+        ],
+        consensus: "Q4のマーケティング戦略について、デジタルシフトを加速させることで全員一致。予算増加は必要だが、ROIを明確にしながら段階的に実施することで合意。"
+      })
+    }
+  }, [sessionId])
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white p-4">
@@ -72,7 +108,7 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
           <ul className="space-y-3">
             {discussionSummary.keyPoints.map((point, index) => (
               <motion.li
-                key={index}
+                key={point}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
@@ -91,7 +127,7 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
           <ul className="space-y-3">
             {discussionSummary.actionItems.map((action, index) => (
               <motion.li
-                key={index}
+                key={action}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 + index * 0.1 }}

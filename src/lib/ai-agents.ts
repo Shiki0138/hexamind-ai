@@ -1,4 +1,6 @@
 import OpenAI from 'openai';
+import { SPECIALIZED_AGENT_PROMPTS, generateBusinessCasePrompt, generateInteractionPrompt } from './specialized-agents';
+import { selectOptimalModel, getMaxTokensForModel } from './model-config';
 
 // AIエージェントの定義
 export interface Agent {
@@ -672,6 +674,17 @@ const THINKING_MODE_PROMPTS = {
 export class AIDiscussionEngine {
   private conversationHistory: Array<{ role: 'system' | 'user' | 'assistant', content: string, agent?: string }> = [];
   private thinkingMode: ThinkingMode = 'normal';
+  
+  // メッセージからエージェント名を抽出
+  private extractAgentFromMessage(content: string): string {
+    const agentNames = Object.keys(AI_AGENTS).map(id => AI_AGENTS[id].name);
+    for (const name of agentNames) {
+      if (content.includes(name)) {
+        return name;
+      }
+    }
+    return '';
+  }
 
   constructor() {
     // セキュリティ上のAPIキーはサーバーサイドでのみ使用
@@ -741,6 +754,9 @@ export class AIDiscussionEngine {
     const selectedAgents = selectedAgentIds.map(id => AI_AGENTS[id]).filter(Boolean);
     this.thinkingMode = thinkingMode;
     
+    // 最適なモデルを選択
+    const selectedModel = selectOptimalModel(topic, thinkingMode, false);
+    
     // 議論の初期設定
     const systemMessage = `以下のトピックについて、複数のAIエージェントが役員会議を開催します。
 
@@ -770,19 +786,31 @@ export class AIDiscussionEngine {
     // フェーズ1: 初期意見（全員が発言）
     for (const agent of agents) {
       try {
+        // 専門的なプロンプトを取得
+        const specializedPrompt = SPECIALIZED_AGENT_PROMPTS[agent.name];
+        const businessCasePrompt = generateBusinessCasePrompt(topic, agent.name);
+        
+        const enhancedSystemPrompt = specializedPrompt 
+          ? `${agent.systemPrompt}\n\n${specializedPrompt.systemPrompt}`
+          : agent.systemPrompt;
+
         const response = await this.callAIAPI({
           messages: [
-            { role: 'system', content: agent.systemPrompt },
+            { role: 'system', content: enhancedSystemPrompt },
             { role: 'system', content: `現在の議論トピック: ${topic}` },
             { role: 'system', content: `検討アプローチ: ${THINKING_MODE_PROMPTS[this.thinkingMode]}` },
             { role: 'user', content: `このトピックについて、あなたの専門分野からの初期分析を詳細に述べてください。必ず以下の点を含めてください：
 1. あなたの専門分野から見た機会とリスク
 2. 具体的な数値やデータに基づいた分析
 3. 他の部門への影響や懸念事項
-4. 初期的な提案や推奨事項` }
+4. 初期的な提案や推奨事項
+
+${businessCasePrompt}
+
+${specializedPrompt ? `分析フレームワーク: ${specializedPrompt.analysisFramework.join(', ')}` : ''}` }
           ],
-          model: 'gpt-3.5-turbo',
-          max_tokens: 800,
+          model: selectedModel,
+          max_tokens: getMaxTokensForModel(selectedModel, 'initial'),
           temperature: this.thinkingMode === 'creative' ? 0.9 : this.thinkingMode === 'critical' ? 0.7 : 0.8
         });
 
@@ -823,9 +851,22 @@ export class AIDiscussionEngine {
       for (const agent of discussionAgents) {
         try {
           const recentHistory = this.conversationHistory.slice(-10);
+          // 前の発言者との相互作用プロンプトを生成
+          const lastMessage = recentHistory[recentHistory.length - 1];
+          const previousSpeaker = lastMessage?.role === 'assistant' 
+            ? this.extractAgentFromMessage(lastMessage.content)
+            : '';
+          const interactionPrompt = generateInteractionPrompt(agent.name, previousSpeaker, lastMessage?.content || '');
+          
+          // 専門的なプロンプトを取得
+          const specializedPrompt = SPECIALIZED_AGENT_PROMPTS[agent.name];
+          const enhancedSystemPrompt = specializedPrompt 
+            ? `${agent.systemPrompt}\n\n${specializedPrompt.systemPrompt}`
+            : agent.systemPrompt;
+
           const response = await this.callAIAPI({
             messages: [
-              { role: 'system', content: agent.systemPrompt },
+              { role: 'system', content: enhancedSystemPrompt },
               { role: 'system', content: `現在の議論トピック: ${topic}` },
               { role: 'system', content: `検討アプローチ: ${THINKING_MODE_PROMPTS[this.thinkingMode]}` },
               ...recentHistory,
@@ -835,10 +876,12 @@ export class AIDiscussionEngine {
 3. あなたの専門分野からの追加分析や提案
 4. 合意点や意見の相違点の明確化
 
+${interactionPrompt}
+
 发言は必ず具体的で実質的な内容を含め、議論を深めるようにしてください。` }
             ],
-            model: 'gpt-3.5-turbo',
-            max_tokens: 600,
+            model: selectedModel,
+            max_tokens: getMaxTokensForModel(selectedModel, 'discussion'),
             temperature: this.thinkingMode === 'creative' ? 0.9 : this.thinkingMode === 'critical' ? 0.7 : 0.8
           });
 
@@ -904,8 +947,8 @@ export class AIDiscussionEngine {
 - [測定可能な成功指標2]` },
           ...this.conversationHistory.slice(-10)
         ],
-        model: 'gpt-3.5-turbo',
-        max_tokens: 800,
+        model: selectedModel,
+        max_tokens: getMaxTokensForModel(selectedModel, 'summary'),
         temperature: 0.3
       });
 

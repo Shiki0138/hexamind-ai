@@ -66,5 +66,7 @@ if (SENTRY_DSN) {
     },
   });
 } else if (process.env.NODE_ENV === 'development') {
+  // Non-breaking: warn developers in local/dev only
+  // eslint-disable-next-line no-console
   console.warn('Sentry DSN not found. Server-side error tracking will be disabled.');
 }

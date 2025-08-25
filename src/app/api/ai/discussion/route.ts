@@ -3,45 +3,13 @@ import OpenAI from 'openai';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-system';
 import * as Sentry from '@sentry/nextjs';
+import { enforceRateLimit, buildRateHeaders } from '@/src/lib/rate-limit';
 
 // 動的ルートとして設定（ビルド時の静的解析を回避）
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// レート制限とセキュリティのための設定
-const RATE_LIMIT = {
-  requests: 100, // 1時間あたりの最大リクエスト数（10→100に増加）
-  windowMs: 60 * 60 * 1000, // 1時間
-};
-
-// シンプルなメモリベースレート制限（本番環境ではRedis等を使用）
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-
-function checkRateLimit(clientId: string): boolean {
-  const now = Date.now();
-  const userLimit = rateLimitMap.get(clientId);
-  
-  if (!userLimit || now > userLimit.resetTime) {
-    rateLimitMap.set(clientId, { count: 1, resetTime: now + RATE_LIMIT.windowMs });
-    console.log(`Rate limit reset for client: ${clientId}`);
-    return true;
-  }
-  
-  if (userLimit.count >= RATE_LIMIT.requests) {
-    console.log(`Rate limit exceeded for client: ${clientId}, count: ${userLimit.count}/${RATE_LIMIT.requests}`);
-    return false;
-  }
-  
-  userLimit.count++;
-  console.log(`Rate limit check for client: ${clientId}, count: ${userLimit.count}/${RATE_LIMIT.requests}`);
-  return true;
-}
-
-// レート制限を手動でリセットする関数
-function resetRateLimit(clientId: string): void {
-  rateLimitMap.delete(clientId);
-  console.log(`Rate limit manually reset for client: ${clientId}`);
-}
+// 1-minute 20-requests in-memory limiter is enforced via src/lib/rate-limit
 
 export async function POST(request: NextRequest) {
   // clientIdをtryブロックの外で宣言
@@ -62,13 +30,11 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // レート制限チェック
+    // レート制限チェック（1分20回）
     clientId = session?.user?.email || request.ip || 'anonymous';
-    if (!checkRateLimit(clientId)) {
-      return NextResponse.json(
-        { error: '1時間あたりのリクエスト制限に達しました。しばらくお待ちください。' }, 
-        { status: 429 }
-      );
+    const rateViolation = await enforceRateLimit(request, { endpoint: 'ai_discussion', identifier: clientId });
+    if (rateViolation) {
+      return rateViolation;
     }
     
     // OpenAI APIキーの確認
@@ -223,18 +189,7 @@ export async function GET(request: NextRequest) {
   }
   
   if (action === 'status') {
-    // 現在のレート制限状況を表示
-    const stats = Array.from(rateLimitMap.entries()).map(([id, limit]) => ({
-      clientId: id,
-      count: limit.count,
-      resetTime: new Date(limit.resetTime).toISOString(),
-      remaining: Math.max(0, RATE_LIMIT.requests - limit.count)
-    }));
-    
-    return NextResponse.json({
-      rateLimit: RATE_LIMIT,
-      clients: stats
-    });
+    return NextResponse.json({ status: 'ok' });
   }
   
   return NextResponse.json(

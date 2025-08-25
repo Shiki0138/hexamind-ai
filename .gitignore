@@ -42,6 +42,9 @@ out/
 .env.test.local
 .env.production.local
 .env.*.local
+# keep examples tracked
+!.env.example
+!.env.local.example
 
 # API keys and secrets (additional security)
 *.key
