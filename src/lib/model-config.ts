@@ -12,6 +12,29 @@ export interface ModelConfig {
 }
 
 export const AI_MODELS: Record<string, ModelConfig> = {
+  // Google Geminiモデル（コスト重視）
+  'gemini-1.5-flash-8b': {
+    name: 'gemini-1.5-flash-8b',
+    displayName: 'Gemini 1.5 Flash 8B',
+    maxTokens: 1000000,
+    costPer1kTokens: 0.000075,
+    quality: 'standard'
+  },
+  'gemini-2.0-flash': {
+    name: 'gemini-2.0-flash',
+    displayName: 'Gemini 2.0 Flash', 
+    maxTokens: 1000000,
+    costPer1kTokens: 0.000075,
+    quality: 'advanced'
+  },
+  'gemini-1.5-pro': {
+    name: 'gemini-1.5-pro',
+    displayName: 'Gemini 1.5 Pro',
+    maxTokens: 2000000,
+    costPer1kTokens: 0.00125,
+    quality: 'premium'
+  },
+  // OpenAIモデル
   'gpt-4o-mini': {
     name: 'gpt-4o-mini',
     displayName: 'GPT-4o Mini',
@@ -81,8 +104,9 @@ export function selectOptimalModel(
     return isComplex ? 'gpt-4-turbo' : 'gpt-4';
   }
 
-  // デフォルトはGPT-4o Mini
-  return 'gpt-4o-mini';
+  // デフォルトはGemini 2.0 Flash（コストと品質のバランス）
+  // return 'gpt-4o-mini';  // OpenAIを使う場合
+  return 'gemini-2.0-flash';  // Google Geminiを使う場合（推奨）
 }
 
 /**
