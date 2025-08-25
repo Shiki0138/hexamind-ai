@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { AIDiscussionEngine, AI_AGENTS, ThinkingMode } from '@/lib/ai-agents';
+import { analyzeQuestionClarity, createDiscussionPromptWithContext, ClarificationContext } from '@/lib/question-clarification';
+import QuestionClarificationDialog from '@/components/QuestionClarificationDialog';
 
 interface Message {
   id: string;
@@ -30,6 +32,11 @@ export default function RealDiscussionScreen({
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [showClarification, setShowClarification] = useState(false);
+  const [clarificationQuestion, setClarificationQuestion] = useState('');
+  const [suggestedAspects, setSuggestedAspects] = useState<string[]>([]);
+  const [clarificationContext, setClarificationContext] = useState<ClarificationContext | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const agentColors: Record<string, string> = {
     'CEO AI': 'bg-purple-500',
@@ -51,7 +58,48 @@ export default function RealDiscussionScreen({
     '議論総括': '📋'
   };
 
-  const startRealDiscussion = async () => {
+  // 最初に質問の明確性を分析
+  const analyzeAndStartDiscussion = async () => {
+    setIsAnalyzing(true);
+    setError(null);
+
+    try {
+      const analysisResult = await analyzeQuestionClarity(topic);
+      
+      if (analysisResult.needsClarification && analysisResult.clarificationQuestion) {
+        // 確認が必要な場合
+        setClarificationQuestion(analysisResult.clarificationQuestion);
+        setSuggestedAspects(analysisResult.suggestedAspects || []);
+        setShowClarification(true);
+      } else {
+        // 確認不要の場合は直接ディスカッション開始
+        await startRealDiscussion();
+      }
+    } catch (error) {
+      console.error('Question analysis error:', error);
+      // 分析エラーの場合は直接ディスカッション開始
+      await startRealDiscussion();
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // 確認質問への回答を受けてディスカッション開始
+  const handleClarificationSubmit = async (response: string) => {
+    const context: ClarificationContext = {
+      originalQuestion: topic,
+      clarificationQuestion: clarificationQuestion,
+      userResponse: response
+    };
+    
+    setClarificationContext(context);
+    setShowClarification(false);
+    
+    // 拡張された質問でディスカッション開始
+    await startRealDiscussion(context);
+  };
+
+  const startRealDiscussion = async (context?: ClarificationContext) => {
     setIsRunning(true);
     setError(null);
     setMessages([]);
@@ -59,7 +107,12 @@ export default function RealDiscussionScreen({
 
     try {
       const engine = new AIDiscussionEngine();
-      const discussionGenerator = engine.startDiscussion(topic, agents, thinkingMode);
+      // コンテキストがある場合は拡張された質問を使用
+      const discussionTopic = context 
+        ? createDiscussionPromptWithContext(topic, context)
+        : topic;
+      
+      const discussionGenerator = engine.startDiscussion(discussionTopic, agents, thinkingMode);
       
       let messageCount = 0;
       const expectedMessages = agents.length * 4; // 各エージェント約4回発言
@@ -126,8 +179,9 @@ export default function RealDiscussionScreen({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white p-4">
-      <div className="max-w-4xl mx-auto">
+    <>
+      <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white p-4">
+        <div className="max-w-4xl mx-auto">
         {/* ヘッダー */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold mb-2">AIボード会議</h1>
@@ -162,15 +216,15 @@ export default function RealDiscussionScreen({
           {/* コントロールボタン */}
           <div className="flex gap-4 mb-6">
             <Button
-              onClick={startRealDiscussion}
-              disabled={isRunning}
+              onClick={analyzeAndStartDiscussion}
+              disabled={isRunning || isAnalyzing}
               className="flex-1"
             >
-              {isRunning ? '実行中...' : 'リアルAI議論を開始'}
+              {isAnalyzing ? '質問を分析中...' : isRunning ? '実行中...' : 'リアルAI議論を開始'}
             </Button>
             <Button
               onClick={startMockDiscussion}
-              disabled={isRunning}
+              disabled={isRunning || isAnalyzing}
               variant="outline"
               className="flex-1"
             >
@@ -255,5 +309,20 @@ export default function RealDiscussionScreen({
         )}
       </div>
     </div>
+
+    {/* 質問確認ダイアログ */}
+    <QuestionClarificationDialog
+      isOpen={showClarification}
+      onClose={() => {
+        setShowClarification(false);
+        // スキップした場合は直接ディスカッション開始
+        startRealDiscussion();
+      }}
+      originalQuestion={topic}
+      clarificationQuestion={clarificationQuestion}
+      suggestedAspects={suggestedAspects}
+      onSubmit={handleClarificationSubmit}
+    />
+  </>
   );
 }
