@@ -731,7 +731,7 @@ export class AIDiscussionEngine {
     throw lastError || new Error('AI API呼び出しに失敗しました');
   }
 
-  async startDiscussion(topic: string, selectedAgentIds: string[], thinkingMode: ThinkingMode = 'normal'): Promise<AsyncGenerator<{ agent: string; message: string; timestamp: Date }>> {
+  async *startDiscussion(topic: string, selectedAgentIds: string[], thinkingMode: ThinkingMode = 'normal'): AsyncGenerator<{ agent: string; message: string; timestamp: Date }> {
     const selectedAgents = selectedAgentIds.map(id => AI_AGENTS[id]).filter(Boolean);
     this.thinkingMode = thinkingMode;
     
@@ -754,7 +754,7 @@ export class AIDiscussionEngine {
 
     this.conversationHistory = [{ role: 'system', content: systemMessage }];
 
-    return this.generateDiscussion(selectedAgents, topic);
+    yield* this.generateDiscussion(selectedAgents, topic);
   }
 
   private async *generateDiscussion(agents: Agent[], topic: string): AsyncGenerator<{ agent: string; message: string; timestamp: Date }> {
