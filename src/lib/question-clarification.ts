@@ -3,7 +3,29 @@
  * CEOが質問の意図を確認し、より明確な情報を得るためのシステム
  */
 
-import { callAIAPI } from './ai-api-client';
+// AI API呼び出し用の関数
+async function callAIAPI(messages: Array<{ role: 'system' | 'user' | 'assistant', content: string }>): Promise<string> {
+  const response = await fetch('/api/ai/discussion', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      messages,
+      model: 'gpt-3.5-turbo',
+      temperature: 0.7,
+      max_tokens: 500
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(errorData.error || `API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.response || '';
+}
 
 export interface ClarificationResult {
   needsClarification: boolean;
