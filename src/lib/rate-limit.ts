@@ -26,6 +26,7 @@ function getClientIp(req: Request): string | undefined {
 export type RateLimitContext = {
   endpoint: string;
   identifier?: string; // prefer userId if known
+  requestId?: string; // optional request ID for deduplication
 };
 
 export type RateLimitResult = {
@@ -34,6 +35,9 @@ export type RateLimitResult = {
   reset: number; // ms until reset
   limit: number;
 };
+
+// Track processed request IDs to prevent duplicate counting
+const processedRequestIds = new Map<string, Set<string>>();
 
 export async function checkRate(req: Request, ctx: RateLimitContext): Promise<RateLimitResult> {
   const now = Date.now();
@@ -47,7 +51,36 @@ export async function checkRate(req: Request, ctx: RateLimitContext): Promise<Ra
       id = `anon:${ua.slice(0,32)}:${Math.floor(now / WINDOW_MS)}`;
     }
   }
+  
+  const windowId = Math.floor(now / WINDOW_MS);
   const key = `${ctx.endpoint}:${id}`;
+  
+  // Check if this requestId was already processed in this window
+  if (ctx.requestId) {
+    const windowKey = `${key}:${windowId}`;
+    const requestIds = processedRequestIds.get(windowKey) || new Set();
+    
+    if (requestIds.has(ctx.requestId)) {
+      // Already processed this request ID in this window, don't count again
+      const { count, resetAt } = await store.get(key, WINDOW_MS);
+      const allowed = count <= LIMIT_PER_WINDOW;
+      const remaining = Math.max(0, LIMIT_PER_WINDOW - count);
+      const reset = Math.max(0, resetAt - now);
+      return { allowed, remaining, reset, limit: LIMIT_PER_WINDOW };
+    }
+    
+    // Mark this request ID as processed
+    requestIds.add(ctx.requestId);
+    processedRequestIds.set(windowKey, requestIds);
+    
+    // Clean up old windows
+    const oldWindows = Array.from(processedRequestIds.keys()).filter(k => {
+      const wId = parseInt(k.split(':').pop() || '0');
+      return wId < windowId - 1;
+    });
+    oldWindows.forEach(k => processedRequestIds.delete(k));
+  }
+  
   const { count, resetAt } = await store.incr(key, WINDOW_MS);
   const allowed = count <= LIMIT_PER_WINDOW;
   const remaining = Math.max(0, LIMIT_PER_WINDOW - count);
@@ -69,7 +102,8 @@ export async function enforceRateLimit(req: Request, ctx: RateLimitContext) {
   console.log('[Rate Limit] 環境変数チェック:', {
     NODE_ENV: process.env.NODE_ENV,
     DISABLE_RATE_LIMIT: process.env.DISABLE_RATE_LIMIT,
-    isDisabled: process.env.NODE_ENV === 'development' || process.env.DISABLE_RATE_LIMIT === 'true'
+    isDisabled: process.env.NODE_ENV === 'development' || process.env.DISABLE_RATE_LIMIT === 'true',
+    requestId: ctx.requestId
   });
   
   // 開発中はレート制限をスキップ

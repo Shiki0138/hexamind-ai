@@ -1,5 +1,6 @@
 export interface RateLimitStore {
   incr(key: string, windowMs: number): Promise<{ count: number; resetAt: number }>;
+  get(key: string, windowMs: number): Promise<{ count: number; resetAt: number }>;
 }
 
 // In-memory implementation (default)
@@ -15,6 +16,15 @@ export class MemoryRateLimitStore implements RateLimitStore {
     current.count += 1;
     current.resetAt = resetAt;
     this.map.set(mapKey, current);
+    return { count: current.count, resetAt };
+  }
+  
+  async get(key: string, windowMs: number) {
+    const now = Date.now();
+    const bucketStart = Math.floor(now / windowMs) * windowMs;
+    const resetAt = bucketStart + windowMs;
+    const mapKey = `${key}:${bucketStart}`;
+    const current = this.map.get(mapKey) || { count: 0, resetAt };
     return { count: current.count, resetAt };
   }
 }
@@ -34,6 +44,16 @@ export class RedisRateLimitStore implements RateLimitStore {
     }
     // @ts-ignore
     return globalThis.__redisFallback.incr(`${this.namespace}:${key}`, windowMs);
+  }
+  
+  async get(key: string, windowMs: number) {
+    // Placeholder that behaves like memory for local dev without Redis.
+    if (!globalThis.__redisFallback) {
+      // @ts-ignore
+      globalThis.__redisFallback = new MemoryRateLimitStore();
+    }
+    // @ts-ignore
+    return globalThis.__redisFallback.get(`${this.namespace}:${key}`, windowMs);
   }
 }
 

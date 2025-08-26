@@ -81,12 +81,20 @@ export default function QuestionInputScreen({
   const [thinkingMode, setThinkingMode] = useState<ThinkingMode>('normal');
   const [context, setContext] = useState('');
   const [isListening, setIsListening] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // 二重送信防止用
 
-  const handleSubmit = (premium = false) => {
-    if (question.trim()) {
-      // premiumがtrueの場合はrealAIもtrueにする
-      const useRealAI = premium || true; // 常にreal AIを使用
-      onStartDiscussion(question.trim(), mode, thinkingMode, useRealAI, premium, context.trim() || undefined);
+  const handleSubmit = async (premium = false) => {
+    if (question.trim() && !isSubmitting) {
+      setIsSubmitting(true); // 送信開始
+      try {
+        // premiumがtrueの場合はrealAIもtrueにする
+        const useRealAI = premium || true; // 常にreal AIを使用
+        await onStartDiscussion(question.trim(), mode, thinkingMode, useRealAI, premium, context.trim() || undefined);
+      } catch (error) {
+        console.error('Discussion start error:', error);
+        setIsSubmitting(false); // エラー時は再有効化
+      }
+      // 正常完了時はsetIsSubmitting(false)を呼ばない（画面遷移するため）
     }
   };
 
@@ -286,11 +294,12 @@ export default function QuestionInputScreen({
         <div className="space-y-3">
           <Button
             className="w-full h-12 text-lg bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 text-black font-bold"
-            disabled={!question.trim()}
+            disabled={!question.trim() || isSubmitting}
             onClick={() => handleSubmit(true)} // Premium mode
             leftIcon={<span className="text-xl">🏆</span>}
+            loading={isSubmitting}
           >
-            プレミアム議論を開始
+            {isSubmitting ? '議論を開始中...' : 'プレミアム議論を開始'}
           </Button>
           <div className="text-xs text-center text-gold-600 mb-2">
             Claude Pro + ChatGPT Plus + Gemini Ultra で最高品質の分析
@@ -298,11 +307,12 @@ export default function QuestionInputScreen({
           
           <Button
             className="w-full h-12 text-lg"
-            disabled={!question.trim()}
+            disabled={!question.trim() || isSubmitting}
             onClick={() => handleSubmit(false)} // Regular mode
             leftIcon={<PlayIcon className="h-5 w-5" />}
+            loading={isSubmitting}
           >
-            通常議論を開始
+            {isSubmitting ? '議論を開始中...' : '通常議論を開始'}
           </Button>
         </div>
       </div>

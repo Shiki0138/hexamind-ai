@@ -37,17 +37,25 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // X-Request-IDを取得または生成
+    let requestId = request.headers.get('x-request-id');
+    if (!requestId) {
+      // 簡易的なID生成（UUID形式）
+      requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    }
+    
     // レート制限チェック（緩和中: 1分60回）
     clientId = session?.user?.email || request.ip || 'anonymous';
     // 診断ログ（短期的に有効化）
     console.log('[ai-discussion] rate-check', {
       clientId,
+      requestId,
       xff: request.headers.get('x-forwarded-for') || null,
       xrip: request.headers.get('x-real-ip') || null,
       cfip: request.headers.get('cf-connecting-ip') || null,
       ua: request.headers.get('user-agent') || null,
     });
-    const rateViolation = await enforceRateLimit(request, { endpoint: 'ai_discussion', identifier: clientId });
+    const rateViolation = await enforceRateLimit(request, { endpoint: 'ai_discussion', identifier: clientId, requestId });
     if (rateViolation) {
       return rateViolation;
     }

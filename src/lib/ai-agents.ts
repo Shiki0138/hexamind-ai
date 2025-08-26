@@ -704,18 +704,23 @@ export class AIDiscussionEngine {
   }): Promise<string> {
     const maxRetries = 3;
     let lastError: Error | null = null;
+    
+    // Generate unique request ID for this API call
+    const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         console.log(`[AI Discussion] API呼び出し試行 ${attempt + 1}/${maxRetries}`, {
           model: params.model,
-          messagesCount: params.messages.length
+          messagesCount: params.messages.length,
+          requestId
         });
         
         const response = await fetch('/api/ai/discussion', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'X-Request-Id': requestId, // Add request ID header
           },
           body: JSON.stringify(params),
           // タイムアウト設定

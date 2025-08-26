@@ -5,10 +5,14 @@
 
 // AI API呼び出し用の関数
 async function callAIAPI(messages: Array<{ role: 'system' | 'user' | 'assistant', content: string }>): Promise<string> {
+  // Generate unique request ID
+  const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
   const response = await fetch('/api/ai/discussion', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'X-Request-Id': requestId, // Add request ID header
     },
   body: JSON.stringify({
     messages,
