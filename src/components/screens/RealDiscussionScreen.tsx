@@ -47,6 +47,9 @@ export default function RealDiscussionScreen({
     actionItems: string[];
     agentSummaries: { agent: string; keyPoints: string[] }[];
   } | null>(null);
+  const [lastExecutionTime, setLastExecutionTime] = useState<number>(0);
+  const [isThrottled, setIsThrottled] = useState(false);
+  const [throttleMessage, setThrottleMessage] = useState('');
 
   const agentColors: Record<string, string> = {
     'CEO AI': 'bg-purple-500',
@@ -158,6 +161,25 @@ export default function RealDiscussionScreen({
 
   // 最初に質問の明確性を分析
   const analyzeAndStartDiscussion = async () => {
+    // クライアント側スロットリング
+    const now = Date.now();
+    const timeSinceLastExecution = now - lastExecutionTime;
+    const throttleTime = 30000; // 30秒のクールダウン
+    
+    if (timeSinceLastExecution < throttleTime) {
+      const remainingTime = Math.ceil((throttleTime - timeSinceLastExecution) / 1000);
+      setIsThrottled(true);
+      setThrottleMessage(`次の議論まで${remainingTime}秒お待ちください`);
+      setError(`次の議論まで${remainingTime}秒お待ちください`);
+      setTimeout(() => {
+        setIsThrottled(false);
+        setThrottleMessage('');
+        setError(null);
+      }, throttleTime - timeSinceLastExecution);
+      return;
+    }
+    
+    setLastExecutionTime(now);
     setIsAnalyzing(true);
     setError(null);
 
@@ -384,10 +406,10 @@ export default function RealDiscussionScreen({
           <div className="flex gap-4 mb-6">
             <Button
               onClick={analyzeAndStartDiscussion}
-              disabled={isRunning || isAnalyzing}
-              className="flex-1"
+              disabled={isRunning || isAnalyzing || isThrottled}
+              className={`flex-1 ${isThrottled ? 'bg-gray-600 cursor-not-allowed' : ''}`}
             >
-              {isAnalyzing ? '質問を分析中...' : isRunning ? '実行中...' : 'リアルAI議論を開始'}
+              {isThrottled ? throttleMessage : isAnalyzing ? '質問を分析中...' : isRunning ? '実行中...' : 'リアルAI議論を開始'}
             </Button>
             <Button
               onClick={startMockDiscussion}

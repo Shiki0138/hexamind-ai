@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     
     // リクエストの検証
     const body = await request.json();
-    const { messages, model = 'gemini-2.0-flash-exp', temperature = 0.7, max_tokens = 2000 } = body;
+    const { messages, model = 'gpt-4o-mini', temperature = 0.7, max_tokens = 2000 } = body;
 
     // 以降のログ/エラーハンドリング用に値を保存
     modelUsed = model;
@@ -45,17 +45,27 @@ export async function POST(request: NextRequest) {
     }
     
     // レート制限チェック（緩和中: 1分60回）
-    clientId = session?.user?.email || request.ip || 'anonymous';
+    // Node.js ランタイムでは request.ip が undefined のことがあるため、ヘッダからIPを推定
+    const ipFromHeaders = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || request.headers.get('x-real-ip')?.trim()
+      || request.headers.get('cf-connecting-ip')?.trim()
+      || undefined;
+    clientId = session?.user?.email || ipFromHeaders || 'anonymous';
     // 診断ログ（短期的に有効化）
     console.log('[ai-discussion] rate-check', {
-      clientId,
+      // セッションメールがある場合のみ固定IDを使用し、なければ rate-limit 側のIP推定に任せる
+      identifierUsed: session?.user?.email ? clientId : undefined,
       requestId,
       xff: request.headers.get('x-forwarded-for') || null,
       xrip: request.headers.get('x-real-ip') || null,
       cfip: request.headers.get('cf-connecting-ip') || null,
       ua: request.headers.get('user-agent') || null,
     });
-    const rateViolation = await enforceRateLimit(request, { endpoint: 'ai_discussion', identifier: clientId, requestId });
+    const rateViolation = await enforceRateLimit(request, { 
+      endpoint: 'ai_discussion', 
+      identifier: session?.user?.email ? clientId : undefined,
+      requestId 
+    });
     if (rateViolation) {
       return rateViolation;
     }

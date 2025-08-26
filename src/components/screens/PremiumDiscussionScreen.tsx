@@ -32,6 +32,8 @@ export default function PremiumDiscussionScreen({
   const [currentStep, setCurrentStep] = useState<string>('');
   const [usageStats, setUsageStats] = useState<any[]>([]);
   const [engine] = useState(() => new PremiumSubscriptionEngine());
+  const [lastExecutionTime, setLastExecutionTime] = useState<number>(0);
+  const [isThrottled, setIsThrottled] = useState(false);
 
   const providerColors: Record<string, string> = {
     'claude-pro': 'bg-gradient-to-r from-orange-500 to-red-500',
@@ -48,6 +50,20 @@ export default function PremiumDiscussionScreen({
   };
 
   const startPremiumDiscussion = async () => {
+    // クライアント側スロットリング
+    const now = Date.now();
+    const timeSinceLastExecution = now - lastExecutionTime;
+    const throttleTime = 30000; // 30秒のクールダウン
+    
+    if (timeSinceLastExecution < throttleTime) {
+      const remainingTime = Math.ceil((throttleTime - timeSinceLastExecution) / 1000);
+      setIsThrottled(true);
+      setCurrentStep(`次の議論まで${remainingTime}秒お待ちください`);
+      setTimeout(() => setIsThrottled(false), throttleTime - timeSinceLastExecution);
+      return;
+    }
+    
+    setLastExecutionTime(now);
     setIsRunning(true);
     setMessages([]);
     setCurrentStep('プレミアムAIサービスを初期化中...');
@@ -191,12 +207,20 @@ export default function PremiumDiscussionScreen({
           <div className="text-center mb-8">
             <Button
               onClick={startPremiumDiscussion}
-              className="bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 text-black font-bold px-8 py-4 text-lg shadow-2xl"
+              disabled={isThrottled}
+              className={`font-bold px-8 py-4 text-lg shadow-2xl ${
+                isThrottled 
+                  ? 'bg-gray-600 cursor-not-allowed' 
+                  : 'bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 text-black'
+              }`}
             >
               🏆 プレミアム議論を開始
             </Button>
             <p className="text-sm text-slate-400 mt-2">
-              最高品質のAIサービスで深い洞察を得ましょう
+              {isThrottled 
+                ? currentStep 
+                : '最高品質のAIサービスで深い洞察を得ましょう'
+              }
             </p>
           </div>
         )}

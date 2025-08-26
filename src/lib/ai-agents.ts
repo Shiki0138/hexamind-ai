@@ -736,11 +736,14 @@ export class AIDiscussionEngine {
             throw new Error(`APIエラー (${response.status}): レスポンスの解析に失敗しました`);
           }
           
-          // レート制限の場合は特別な処理
+          // レート制限の場合は特別な処理（エクスポネンシャルバックオフ）
           if (response.status === 429) {
             const retryAfter = errorData.retryAfter || 60;
             if (attempt < maxRetries - 1) {
-              await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+              // エクスポネンシャルバックオフ: 2^attempt * 基本待機時間
+              const exponentialDelay = Math.min(Math.pow(2, attempt) * retryAfter * 1000, 120000); // 最大120秒
+              console.log(`[AI Discussion] 429エラー、${exponentialDelay/1000}秒後にリトライ`);
+              await new Promise(resolve => setTimeout(resolve, exponentialDelay));
               continue; // リトライ
             }
           }
@@ -761,9 +764,10 @@ export class AIDiscussionEngine {
         lastError = error instanceof Error ? error : new Error('Unknown error');
         console.error(`AI API call failed (attempt ${attempt + 1}/${maxRetries}):`, error);
         
-        // 最後の試行でない場合は短時間待機してリトライ
+        // 最後の試行でない場合はエクスポネンシャルバックオフ
         if (attempt < maxRetries - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+          const backoffDelay = Math.min(Math.pow(2, attempt) * 1000, 30000); // 最大2^n秒、最大30秒
+          await new Promise(resolve => setTimeout(resolve, backoffDelay));
         }
       }
     }
@@ -825,7 +829,7 @@ ${debate.researchHints}`;
       
       // API制限回避のため、各エージェント間に遅延を追加（最初以外）
       if (i > 0) {
-        await new Promise(resolve => setTimeout(resolve, 3000 + Math.random() * 2000)); // 3-5秒の遅延
+        await new Promise(resolve => setTimeout(resolve, 8000 + Math.random() * 2000)); // 8-10秒の遅延
       }
       
       try {
@@ -888,7 +892,7 @@ ${specializedPrompt.analysisFramework.slice(0, 3).join('\n')}` : ''}
           };
 
           // 各発言間に十分な間隔を開ける（API制限対策）
-          await new Promise(resolve => setTimeout(resolve, 4000 + Math.random() * 2000)); // 4-6秒
+          await new Promise(resolve => setTimeout(resolve, 8000 + Math.random() * 2000)); // 8-10秒
         }
       } catch (error) {
         console.error(`Error generating response for ${agent.name}:`, error);
@@ -909,7 +913,7 @@ ${specializedPrompt.analysisFramework.slice(0, 3).join('\n')}` : ''}
       
       // フェーズ2でも各発言間に遅延を追加（API制限対策）
       if (discussionIterations > 1) {
-        await new Promise(resolve => setTimeout(resolve, 4000 + Math.random() * 2000)); // 4-6秒
+        await new Promise(resolve => setTimeout(resolve, 8000 + Math.random() * 2000)); // 8-10秒
       }
       // 最後の発言内容に基づいて次の発言者を動的に選択
       const lastMessage = this.conversationHistory[this.conversationHistory.length - 1];
@@ -989,7 +993,7 @@ ${enhancedBehavior ? `【使える質問例】
               timestamp: new Date()
             };
 
-            await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 1000));
+            await new Promise(resolve => setTimeout(resolve, 8000 + Math.random() * 2000)); // 8-10秒
           }
       } catch (error) {
         console.error(`Error generating response for ${agent.name}:`, error);

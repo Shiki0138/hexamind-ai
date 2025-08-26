@@ -150,10 +150,15 @@ STRIPE_WEBHOOK_SECRET=whsec_your-webhook-secret
 # AI Providers
 OPENAI_API_KEY=sk-your-openai-key
 NEXT_PUBLIC_GEMINI_API_KEY=your-gemini-key
+GOOGLE_AI_API_KEY=your-google-ai-api-key  # Gemini 2.0 Flash用
 
 # Google OAuth
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# Rate Limiting (オプション)
+DISABLE_RATE_LIMIT=true  # 429エラーが発生する場合にtrueに設定
+RATE_LIMIT_REDIS_URL=redis://your-redis-url  # Redisを使用する場合
 ```
 
 ### Optional Features
@@ -267,6 +272,38 @@ We welcome contributions! Please see our [Contributing Guidelines](./CONTRIBUTIN
 - [Privacy Policy](/privacy) - データ保護とプライバシー
 - [Terms of Service](/terms) - 利用規約
 - [Disclaimer](/disclaimer) - 免責事項
+
+---
+
+## 🔧 Troubleshooting
+
+### 429 Too Many Requests エラーの対処
+
+429エラーが発生する場合は、以下の対策を試してください：
+
+1. **環境変数の設定**
+   ```env
+   DISABLE_RATE_LIMIT=true  # Vercelの環境変数に追加
+   ```
+
+2. **APIキーの確認**
+   - OpenAI、GeminiのAPIキーが有効であることを確認
+   - APIの使用クォータが残っていることを確認
+
+3. **Redisの設定（推奨）**
+   ```env
+   RATE_LIMIT_REDIS_URL=redis://your-redis-url
+   ```
+   サーバーレス環境でのレート制限を正しく機能させるためにRedisを使用
+
+4. **クライアント側のスロットリング**
+   - アプリケーションには30秒のクールダウン期間が設定されています
+   - 連続して議論を実行する場合は少し待ってから実行してください
+
+### その他の一般的な問題
+
+- **議論が終わらない**: 議論は最大12発言で終了するよう設定されています
+- **APIエラー**: APIキーが正しく設定されていることを確認してください
 
 ---
 
