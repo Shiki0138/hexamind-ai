@@ -4,6 +4,7 @@
  */
 
 import { GoogleGenerativeAI, GenerativeModel, ChatSession } from '@google/generative-ai';
+import { withGeminiRateLimit, geminiRateLimiter } from './gemini-rate-limiter';
 
 // Gemini APIクライアント
 let geminiClient: GoogleGenerativeAI | null = null;
@@ -29,7 +30,7 @@ export function initializeGemini(): GoogleGenerativeAI {
 /**
  * Gemini モデルの取得
  */
-export function getGeminiModel(modelName: string = 'gemini-2.0-flash-exp'): GenerativeModel {
+export function getGeminiModel(modelName: string = 'gemini-1.5-flash'): GenerativeModel {
   const client = initializeGemini();
   
   // Available models:
@@ -84,26 +85,57 @@ export interface GeminiChatRequest {
 }
 
 export async function callGeminiAPI(request: GeminiChatRequest): Promise<string> {
+  const modelName = request.model || 'gemini-1.5-flash';
+  
+  // Log current usage stats
+  const stats = geminiRateLimiter.getUsageStats(modelName);
+  console.log('[Gemini] Current usage:', {
+    model: modelName,
+    minuteUsage: `${stats.minuteUsage}/${stats.limits.rpm}`,
+    dailyUsage: `${stats.dailyUsage}/${stats.limits.rpd}`
+  });
+  
   try {
-    const modelName = request.model || 'gemini-2.0-flash-exp';
-    const model = getGeminiModel(modelName);
-    
-    // OpenAI形式のメッセージをGemini形式に変換
-    const prompt = formatMessagesForGemini(request.messages);
-    
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: request.temperature || 0.7,
-        maxOutputTokens: request.max_tokens || 8192,
-      }
+    return await withGeminiRateLimit(modelName, async () => {
+      const model = getGeminiModel(modelName);
+      
+      // OpenAI形式のメッセージをGemini形式に変換
+      const prompt = formatMessagesForGemini(request.messages);
+      
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: request.temperature || 0.7,
+          maxOutputTokens: request.max_tokens || 8192,
+        }
+      });
+      
+      const response = result.response;
+      return response.text() || '';
     });
-    
-    const response = result.response;
-    return response.text() || '';
-    
-  } catch (error) {
+  } catch (error: any) {
     console.error('Gemini API Error:', error);
+    
+    // Handle specific Gemini error types
+    if (error.message?.includes('429') || error.message?.includes('Resource has been exhausted')) {
+      const enhancedError = new Error(
+        `Gemini API rate limit exceeded. The free tier allows only 15 requests per minute. ` +
+        `Please wait a moment before trying again or consider upgrading to a paid tier. ` +
+        `Model: ${request.model || 'gemini-2.0-flash-exp'}`
+      );
+      enhancedError.name = 'GeminiRateLimitError';
+      throw enhancedError;
+    }
+    
+    if (error.message?.includes('quota')) {
+      const quotaError = new Error(
+        `Gemini API daily quota exceeded (1,500 requests per day on free tier). ` +
+        `Please try again tomorrow or upgrade your API plan.`
+      );
+      quotaError.name = 'GeminiQuotaError';
+      throw quotaError;
+    }
+    
     throw error;
   }
 }

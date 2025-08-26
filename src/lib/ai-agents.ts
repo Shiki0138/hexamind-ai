@@ -7,6 +7,7 @@ import { OutputSections } from './output-specs';
 import { ResearchHints } from './research-hints';
 import { DiscussionOrchestrator } from './discussion-orchestrator';
 import { ENHANCED_AGENT_BEHAVIORS } from './enhanced-prompts';
+import { calculateRequiredDelay, isRateLimitedModel } from './provider-rate-limits';
 
 // AIエージェントの定義
 export interface Agent {
@@ -829,7 +830,11 @@ ${debate.researchHints}`;
       
       // API制限回避のため、各エージェント間に遅延を追加（最初以外）
       if (i > 0) {
-        await new Promise(resolve => setTimeout(resolve, 8000 + Math.random() * 2000)); // 8-10秒の遅延
+        const requiredDelay = calculateRequiredDelay(selectedModel);
+        const jitter = isRateLimitedModel(selectedModel) ? Math.random() * 1000 : Math.random() * 2000;
+        const totalDelay = requiredDelay + jitter;
+        console.log(`[AI Discussion] Phase 1 - Waiting ${totalDelay}ms before agent ${agent.name} (model: ${selectedModel})`);
+        await new Promise(resolve => setTimeout(resolve, totalDelay));
       }
       
       try {
@@ -892,7 +897,9 @@ ${specializedPrompt.analysisFramework.slice(0, 3).join('\n')}` : ''}
           };
 
           // 各発言間に十分な間隔を開ける（API制限対策）
-          await new Promise(resolve => setTimeout(resolve, 8000 + Math.random() * 2000)); // 8-10秒
+          const postErrorDelay = calculateRequiredDelay(selectedModel) * 2; // エラー後は2倍の遅延
+          console.log(`[AI Discussion] Post-error delay: ${postErrorDelay}ms`);
+          await new Promise(resolve => setTimeout(resolve, postErrorDelay));
         }
       } catch (error) {
         console.error(`Error generating response for ${agent.name}:`, error);
@@ -913,7 +920,11 @@ ${specializedPrompt.analysisFramework.slice(0, 3).join('\n')}` : ''}
       
       // フェーズ2でも各発言間に遅延を追加（API制限対策）
       if (discussionIterations > 1) {
-        await new Promise(resolve => setTimeout(resolve, 8000 + Math.random() * 2000)); // 8-10秒
+        const requiredDelay = calculateRequiredDelay(selectedModel);
+        const jitter = isRateLimitedModel(selectedModel) ? Math.random() * 1000 : Math.random() * 2000;
+        const totalDelay = requiredDelay + jitter;
+        console.log(`[AI Discussion] Phase 2 - Iteration ${discussionIterations}: Waiting ${totalDelay}ms (model: ${selectedModel})`);
+        await new Promise(resolve => setTimeout(resolve, totalDelay));
       }
       // 最後の発言内容に基づいて次の発言者を動的に選択
       const lastMessage = this.conversationHistory[this.conversationHistory.length - 1];
@@ -993,7 +1004,9 @@ ${enhancedBehavior ? `【使える質問例】
               timestamp: new Date()
             };
 
-            await new Promise(resolve => setTimeout(resolve, 8000 + Math.random() * 2000)); // 8-10秒
+            const postResponseDelay = calculateRequiredDelay(selectedModel);
+            console.log(`[AI Discussion] Post-response delay: ${postResponseDelay}ms`);
+            await new Promise(resolve => setTimeout(resolve, postResponseDelay));
           }
       } catch (error) {
         console.error(`Error generating response for ${agent.name}:`, error);

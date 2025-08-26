@@ -281,14 +281,24 @@ We welcome contributions! Please see our [Contributing Guidelines](./CONTRIBUTIN
 
 429エラーが発生する場合は、以下の対策を試してください：
 
+#### 重要：Gemini無料プランの制限
+
+Geminiの無料プランは**1分間に15リクエスト**という非常に厳しい制限があります。6人のエージェントが議論する場合、この制限をすぐに超えてしまいます。
+
+**推奨対策：OpenAIを使用する**
+
+デフォルトでOpenAIの`gpt-4o-mini`を使用するよう設定済みです。OpenAIのAPIキーを設定してください。
+
 1. **環境変数の設定**
    ```env
+   OPENAI_API_KEY=sk-...  # OpenAI APIキー（必須）
    DISABLE_RATE_LIMIT=true  # Vercelの環境変数に追加
    ```
 
 2. **APIキーの確認**
-   - OpenAI、GeminiのAPIキーが有効であることを確認
-   - APIの使用クォータが残っていることを確認
+   - OpenAI APIキーが正しく設定されていることを確認
+   - [OpenAI Platform](https://platform.openai.com/account/billing)で使用状況を確認
+   - Geminiを使いたい場合は、有料プランの検討をお勧めします
 
 3. **Redisの設定（推奨）**
    ```env
@@ -299,6 +309,10 @@ We welcome contributions! Please see our [Contributing Guidelines](./CONTRIBUTIN
 4. **クライアント側のスロットリング**
    - アプリケーションには30秒のクールダウン期間が設定されています
    - 連続して議論を実行する場合は少し待ってから実行してください
+
+5. **Geminiで429エラーが発生した場合**
+   - システムは自動的にOpenAIにフォールバックします
+   - Geminiの遅延は12秒に設定されています（安全マージン）
 
 ### その他の一般的な問題
 

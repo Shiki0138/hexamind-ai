@@ -104,9 +104,9 @@ export function selectOptimalModel(
     return isComplex ? 'gpt-4-turbo' : 'gpt-4';
   }
 
-  // デフォルトはGemini 2.0 Flash（コストと品質のバランス）
-  // return 'gpt-4o-mini';  // OpenAIを使う場合
-  return 'gemini-2.0-flash';  // Google Geminiを使う場合（推奨）
+  // デフォルトはGPT-4o-mini（Geminiは無料プランのレート制限が厳しいため）
+  return 'gpt-4o-mini';  // OpenAIを使う場合（安定性重視）
+  // return 'gemini-2.0-flash';  // Google Geminiを使う場合（コスト重視、但し1分15リクエスト制限あり）
 }
 
 /**

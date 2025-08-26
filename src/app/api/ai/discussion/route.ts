@@ -101,24 +101,42 @@ export async function POST(request: NextRequest) {
     // モデルに応じて適切なAPIを呼び出し
     let response: string = '';
     let usage: any = undefined;
+    let apiError: Error | null = null;
     
+    // Gemini APIで429エラーが発生した場合、OpenAIにフォールバック
     if (isGeminiModel) {
-      console.log('Calling Gemini API with model:', model, 'messages:', messages.length);
-      response = await callGeminiAPI({
-        messages: messages,
-        model: model,
-        temperature: temperature,
-        max_tokens: max_tokens
-      });
-      
-      // Geminiは現在usage情報を返さないため、推定値を設定
-      usage = {
-        prompt_tokens: messages.reduce((sum, msg) => sum + (msg.content?.length || 0) / 4, 0),
-        completion_tokens: response.length / 4,
-        total_tokens: messages.reduce((sum, msg) => sum + (msg.content?.length || 0) / 4, 0) + response.length / 4
-      };
-      
-    } else {
+      try {
+        console.log('Calling Gemini API with model:', model, 'messages:', messages.length);
+        response = await callGeminiAPI({
+          messages: messages,
+          model: model,
+          temperature: temperature,
+          max_tokens: max_tokens
+        });
+        
+        // Geminiは現在usage情報を返さないため、推定値を設定
+        usage = {
+          prompt_tokens: messages.reduce((sum, msg) => sum + (msg.content?.length || 0) / 4, 0),
+          completion_tokens: response.length / 4,
+          total_tokens: messages.reduce((sum, msg) => sum + (msg.content?.length || 0) / 4, 0) + response.length / 4
+        };
+      } catch (geminiError) {
+        console.log('Gemini API failed, attempting OpenAI fallback...');
+        apiError = geminiError instanceof Error ? geminiError : new Error('Gemini API error');
+        
+        // Geminiが失敗した場合、OpenAIにフォールバック
+        if (process.env.OPENAI_API_KEY && (apiError.message.includes('429') || apiError.message.includes('rate limit'))) {
+          console.log('Falling back to OpenAI due to Gemini rate limit');
+          modelUsed = 'gpt-4o-mini'; // フォールバックモデル
+          isGeminiModel = false;
+          isOpenAIModel = true;
+        } else {
+          throw geminiError; // レート制限以外のエラーは再スロー
+        }
+      }
+    }
+    
+    if (!isGeminiModel) {
       // OpenAI API
       console.log('API Key check for OpenAI...');
       
