@@ -885,33 +885,6 @@ ${worldClassExpertise.questionClarification ? `【質問の明確化】\n${world
         ];
         
         const response = await this.callAIAPI({
-          messages
-
-${worldClassExpertise.questionClarification ? `【質問の明確化】
-${worldClassExpertise.questionClarification}
-
-` : ''}このトピックについて、世界トップレベルの専門性を発揮して分析を行ってください。
-
-${enhancedBehavior ? `【発言スタイル】
-${enhancedBehavior.argumentPatterns[0]}` : ''}
-
-【必須要件】
-1. 全ての数値には信頼できる出典を明記（Bloomberg、McKinsey、Statista等）
-2. 統計的分析を含める（回帰分析、信頼区間、p値等）
-3. 業界ベンチマーク（最低3社との定量的比較）
-4. 3つのシナリオ分析（楽観・中立・悲観）と確率
-5. ROI/NPV等の財務的影響の定量化
-6. 実行計画（フェーズ別、KPI付き）
-
-${businessCasePrompt}
-
-${specializedPrompt ? `【活用すべき分析フレームワーク】
-${specializedPrompt.analysisFramework.slice(0, 3).join('\n')}` : ''}
-
-重要：あなたの専門性を最大限に発揮し、他の役員が反応しやすい具体的な論点を提示してください。` }
-        ];
-        
-        const response = await this.callAIAPI({
           messages,
           model: selectedModel,
           max_tokens: getMaxTokensForModel(selectedModel, 'initial'),
