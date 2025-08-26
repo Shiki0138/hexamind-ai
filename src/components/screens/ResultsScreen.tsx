@@ -168,8 +168,10 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
             ))}
           </ul>
         </Card>
+        )}
 
         {/* Action Items */}
+        {!isLoading && !error && (
         <Card className="mb-6 p-6">
           <h3 className="font-semibold mb-4">推奨アクション</h3>
           <ul className="space-y-3">
@@ -189,6 +191,7 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
             ))}
           </ul>
         </Card>
+        )}
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
