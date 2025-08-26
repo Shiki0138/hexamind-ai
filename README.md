@@ -79,10 +79,10 @@ HexaMind AIは、**6人の専門AIエージェント**が同時にオーケス�
 - **Sentry** - エラートラッキング
 
 ### AI & APIs
-- **OpenAI GPT-4** - 基本AI機能
+- **OpenAI GPT-4o** - 最高品質のAI議論（デフォルト）
 - **Claude Pro** - 高品質推論
 - **ChatGPT Plus** - 高速処理
-- **Gemini Ultra** - 長文解析
+- **Gemini 2.0 Flash** - コスト重視
 
 ### Infrastructure
 - **Vercel** - ホスティング・デプロイ
@@ -285,9 +285,19 @@ We welcome contributions! Please see our [Contributing Guidelines](./CONTRIBUTIN
 
 Geminiの無料プランは**1分間に15リクエスト**という非常に厳しい制限があります。6人のエージェントが議論する場合、この制限をすぐに超えてしまいます。
 
-**推奨対策：OpenAIを使用する**
+**推奨対策：OpenAI GPT-4oを使用する**
 
-デフォルトでOpenAIの`gpt-4o-mini`を使用するよう設定済みです。OpenAIのAPIキーを設定してください。
+デフォルトでOpenAIの`gpt-4o`（最高品質モデル）を使用するよう設定済みです。
+
+### モデル比較（2025年8月時点）
+
+| モデル | 入力コスト | 出力コスト | 品質 | レート制限 |
+|--------|------------|------------|------|------------|
+| GPT-4o | $0.0025/1K | $0.01/1K | 最高 | 緩い |
+| GPT-4o-mini | $0.00015/1K | $0.0006/1K | 優秀 | 緩い |
+| Gemini 2.0 Flash | $0.00001875/1K | $0.000075/1K | 良い | 厳しい（無料:15rpm） |
+
+OpenAIのAPIキーを設定してください。
 
 1. **環境変数の設定**
    ```env

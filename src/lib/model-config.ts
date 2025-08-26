@@ -67,7 +67,7 @@ export const AI_MODELS: Record<string, ModelConfig> = {
     name: 'gpt-4o',
     displayName: 'GPT-4o',
     maxTokens: 128000,
-    costPer1kTokens: 0.005,
+    costPer1kTokens: 0.005, // 2025年8月: 入力$0.0025/1K, 出力$0.01/1K (平均)
     quality: 'premium'
   }
 };
@@ -104,9 +104,10 @@ export function selectOptimalModel(
     return isComplex ? 'gpt-4-turbo' : 'gpt-4';
   }
 
-  // デフォルトはGPT-4o-mini（Geminiは無料プランのレート制限が厳しいため）
-  return 'gpt-4o-mini';  // OpenAIを使う場合（安定性重視）
-  // return 'gemini-2.0-flash';  // Google Geminiを使う場合（コスト重視、但し1分15リクエスト制限あり）
+  // デフォルトはGPT-4o（最高品質のAI議論）
+  return 'gpt-4o';  // OpenAI GPT-4o（高品質・高性能）
+  // return 'gpt-4o-mini';  // コスト重視の場合
+  // return 'gemini-2.0-flash';  // 最安値だが1分15リクエスト制限あり
 }
 
 /**
