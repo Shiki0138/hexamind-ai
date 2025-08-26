@@ -37,8 +37,16 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // レート制限チェック（1分20回）
+    // レート制限チェック（緩和中: 1分60回）
     clientId = session?.user?.email || request.ip || 'anonymous';
+    // 診断ログ（短期的に有効化）
+    console.log('[ai-discussion] rate-check', {
+      clientId,
+      xff: request.headers.get('x-forwarded-for') || null,
+      xrip: request.headers.get('x-real-ip') || null,
+      cfip: request.headers.get('cf-connecting-ip') || null,
+      ua: request.headers.get('user-agent') || null,
+    });
     const rateViolation = await enforceRateLimit(request, { endpoint: 'ai_discussion', identifier: clientId });
     if (rateViolation) {
       return rateViolation;

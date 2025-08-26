@@ -7,13 +7,18 @@ import { selectStore } from './rate-limit-store';
 type Identifier = string; // userId or ip
 
 const WINDOW_MS = 60_000;
-const LIMIT_PER_WINDOW = 1000; // 200→1000に大幅緩和（サーバーレス環境対応）
+// Temporarily relax to 60/min to mitigate false positives; adjust later.
+const LIMIT_PER_WINDOW = 60;
 const store = selectStore();
 
 function getClientIp(req: Request): string | undefined {
   try {
-    const hdr = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip');
-    if (hdr) return hdr.split(',')[0].trim();
+    const cf = req.headers.get('cf-connecting-ip');
+    if (cf) return cf.trim();
+    const xff = req.headers.get('x-forwarded-for');
+    if (xff) return xff.split(',')[0].trim();
+    const xrip = req.headers.get('x-real-ip');
+    if (xrip) return xrip.trim();
   } catch {}
   return undefined;
 }
@@ -33,7 +38,15 @@ export type RateLimitResult = {
 export async function checkRate(req: Request, ctx: RateLimitContext): Promise<RateLimitResult> {
   const now = Date.now();
   let id: Identifier | undefined = ctx.identifier;
-  if (!id) id = getClientIp(req) || 'anonymous';
+  if (!id) {
+    const ip = getClientIp(req);
+    if (ip) {
+      id = ip;
+    } else {
+      const ua = req.headers.get('user-agent') || 'ua';
+      id = `anon:${ua.slice(0,32)}:${Math.floor(now / WINDOW_MS)}`;
+    }
+  }
   const key = `${ctx.endpoint}:${id}`;
   const { count, resetAt } = await store.incr(key, WINDOW_MS);
   const allowed = count <= LIMIT_PER_WINDOW;
