@@ -834,10 +834,17 @@ ${debate.researchHints}`;
 
     this.conversationHistory = [{ role: 'system', content: systemMessage }];
 
-    yield* this.generateDiscussion(selectedAgents, topic, selectedModel);
+    yield* this.generateDiscussion(selectedAgents, topic, selectedModel, maxBudgetJPY, selectedAgentIds, thinkingMode);
   }
 
-  private async *generateDiscussion(agents: Agent[], topic: string, selectedModel: string): AsyncGenerator<{ agent: string; message: string; timestamp: Date }> {
+  private async *generateDiscussion(
+    agents: Agent[], 
+    topic: string, 
+    selectedModel: string, 
+    maxBudgetJPY: number = 100,
+    selectedAgentIds: string[],
+    thinkingMode: ThinkingMode
+  ): AsyncGenerator<{ agent: string; message: string; timestamp: Date; costInfo?: { totalCostJPY: number; remainingBudgetJPY: number } }> {
     const orchestrator = new DiscussionOrchestrator(topic, maxBudgetJPY, selectedModel);
     let lastSpeaker = '';
     
@@ -867,13 +874,18 @@ ${debate.researchHints}`;
         const currentDebate = composeDebatePrompts(topic);
         const roleBooster = currentDebate.roles.join('\n\n');
 
+        const messages = [
+          { role: 'system' as const, content: enhancedSystemPrompt },
+          { role: 'system' as const, content: roleBooster },
+          { role: 'system' as const, content: `現在の議論トピック: ${topic}` },
+          { role: 'system' as const, content: `検討アプローチ: ${THINKING_MODE_PROMPTS[this.thinkingMode]}` },
+          { role: 'user' as const, content: `【${agent.name}として発言】
+
+${worldClassExpertise.questionClarification ? `【質問の明確化】\n${worldClassExpertise.questionClarification}\n\n` : ''}このトピックについて、世界トップレベルの専門性を発揮して分析を行ってください。\n\n${enhancedBehavior ? `【発言スタイル】\n${enhancedBehavior.argumentPatterns[0]}` : ''}\n\n【必須要件】\n1. 全ての数値には信頼できる出典を明記（Bloomberg、McKinsey、Statista等）\n2. 統計的分析を含める（回帰分析、信頼区間、p値等）\n3. 業界ベンチマーク（最低3社との定量的比較）\n4. 3つのシナリオ分析（楽観・中立・悲観）と確率\n5. ROI/NPV等の財務的影響の定量化\n6. 実行計画（フェーズ別、KPI付き）\n\n${businessCasePrompt}\n\n${specializedPrompt ? `【活用すべき分析フレームワーク】\n${specializedPrompt.analysisFramework.slice(0, 3).join('\n')}` : ''}\n\n重要：あなたの専門性を最大限に発揮し、他の役員が反応しやすい具体的な論点を提示してください。` }
+        ];
+        
         const response = await this.callAIAPI({
-          messages: [
-            { role: 'system', content: enhancedSystemPrompt },
-            { role: 'system', content: roleBooster },
-            { role: 'system', content: `現在の議論トピック: ${topic}` },
-            { role: 'system', content: `検討アプローチ: ${THINKING_MODE_PROMPTS[this.thinkingMode]}` },
-            { role: 'user', content: `【${agent.name}として発言】
+          messages
 
 ${worldClassExpertise.questionClarification ? `【質問の明確化】
 ${worldClassExpertise.questionClarification}
@@ -897,7 +909,10 @@ ${specializedPrompt ? `【活用すべき分析フレームワーク】
 ${specializedPrompt.analysisFramework.slice(0, 3).join('\n')}` : ''}
 
 重要：あなたの専門性を最大限に発揮し、他の役員が反応しやすい具体的な論点を提示してください。` }
-          ],
+        ];
+        
+        const response = await this.callAIAPI({
+          messages,
           model: selectedModel,
           max_tokens: getMaxTokensForModel(selectedModel, 'initial'),
           temperature: this.thinkingMode === 'creative' ? 0.9 : this.thinkingMode === 'critical' ? 0.7 : 0.8
