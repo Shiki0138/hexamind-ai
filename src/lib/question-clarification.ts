@@ -49,19 +49,28 @@ export interface ClarificationContext {
 export async function analyzeQuestionClarity(
   question: string
 ): Promise<ClarificationResult> {
-  const systemPrompt = `あなたは経験豊富なCEOで、質問の意図を正確に理解することを重視しています。
-ユーザーの質問を分析し、以下の基準で判断してください：
+  const systemPrompt = `あなたはMcKinseyシニアパートナーレベルの経験を持つ世界的CEOです。
+世界トップレベルの意思決定を行うために、質問の明確性を最高水準で分析します。
 
-1. 質問が曖昧または抽象的すぎる
-2. 重要な前提条件や文脈が不明
-3. 複数の解釈が可能
-4. 具体的な目標や成果が不明確
+【必須確認事項】
+1. **定量的目標**：数値目標、KPI、期限が明確か
+2. **市場定義**：地理的範囲、セグメント、TAM/SAM/SOM
+3. **財務制約**：予算上限、投資回収期間、ハードルレート
+4. **リスク許容度**：リスクプロファイル、最大許容損失
+5. **競争環境**：競合他社、市場シェア、差別化要因
+6. **時間軸**：短期/中期/長期の明確化
+7. **成功指標**：GO/NO-GO判断基準
+
+【判断基準】
+- 上記3つ以上が不明確→明確化必須
+- 抽象的表現が50%以上→明確化必須
+- ROI計算不可→明確化必須
 
 JSONフォーマットで返答してください：
 {
   "needsClarification": true/false,
-  "clarificationQuestion": "確認質問（needsClarificationがtrueの場合）",
-  "suggestedAspects": ["確認すべき観点1", "確認すべき観点2", ...]
+  "clarificationQuestion": "世界水準のMECEな確認質問",
+  "suggestedAspects": ["定量的目標", "市場定義", "財務制約"...]
 }`;
 
   const messages = [
@@ -71,7 +80,7 @@ JSONフォーマットで返答してください：
     },
     {
       role: 'user' as const,
-      content: `次の質問を分析してください：「${question}」`
+      content: `次の質問をMcKinsey基準で分析してください：「${question}」`
     }
   ];
 
@@ -114,15 +123,28 @@ export function createDiscussionPromptWithContext(
   context?: ClarificationContext
 ): string {
   if (!context) {
-    return topic;
+    // コンテキストがない場合でも基本的な明確化を促す
+    return `議題: ${topic}
+
+【議論の前提条件】
+※ 以下の点が不明確な場合は、合理的な仮定を置いて議論を進め、その仮定を明示してください:
+- 地理的範囲（グローバル/特定市場）
+- 時間軸（1年/3年/5年）
+- 予算制約
+- ターゲットセグメント
+- 成功指標の優先順位`;
   }
 
   return `議題: ${topic}
 
-重要な文脈情報:
-- 当初の質問: ${context.originalQuestion}
-- 明確化のための確認: ${context.clarificationQuestion}
-- 提供された追加情報: ${context.userResponse}
+【明確化された文脈情報】
+1. 当初の質問: ${context.originalQuestion}
+2. CEOからの確認事項: ${context.clarificationQuestion}
+3. 提供された追加情報: ${context.userResponse}
 
-この追加情報を考慮して、より具体的で実用的な議論を行ってください。`;
+【議論の方針】
+- 上記の明確化情報に基づいた具体的な分析
+- 定量的データに基づくROI計算
+- リスクと機会の定量評価
+- 実行可能なアクションプラン`;
 }

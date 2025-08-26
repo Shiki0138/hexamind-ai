@@ -6,8 +6,11 @@ import { buildDebateSystemPrompt } from './debate-protocol';
 import { OutputSections } from './output-specs';
 import { ResearchHints } from './research-hints';
 import { DiscussionOrchestrator } from './discussion-orchestrator';
+import { calculateDiscussionCost, estimateTokens } from './cost-calculator';
 import { ENHANCED_AGENT_BEHAVIORS } from './enhanced-prompts';
+import { WORLD_CLASS_EXPERTISE, QUESTION_CLARIFICATION_SYSTEM, FACT_BASED_DISCUSSION_GUIDELINES } from './world-class-expertise';
 import { calculateRequiredDelay, isRateLimitedModel } from './provider-rate-limits';
+import { analyzeQuestionClarity, createDiscussionPromptWithContext, type ClarificationContext } from './question-clarification';
 
 // AIエージェントの定義
 export interface Agent {
@@ -681,6 +684,8 @@ const THINKING_MODE_PROMPTS = {
 export class AIDiscussionEngine {
   private conversationHistory: Array<{ role: 'system' | 'user' | 'assistant', content: string, agent?: string }> = [];
   private thinkingMode: ThinkingMode = 'normal';
+  private totalTokensUsed: { input: number; output: number } = { input: 0, output: 0 };
+  private estimatedCostJPY: number = 0;
   
   // メッセージからエージェント名を抽出
   private extractAgentFromMessage(content: string): string {
@@ -777,7 +782,13 @@ export class AIDiscussionEngine {
     throw lastError || new Error('AI API呼び出しに失敗しました');
   }
 
-  async *startDiscussion(topic: string, selectedAgentIds: string[], thinkingMode: ThinkingMode = 'normal'): AsyncGenerator<{ agent: string; message: string; timestamp: Date }> {
+  async *startDiscussion(
+    topic: string, 
+    selectedAgentIds: string[], 
+    thinkingMode: ThinkingMode = 'normal', 
+    clarificationContext?: ClarificationContext,
+    maxBudgetJPY: number = 100
+  ): AsyncGenerator<{ agent: string; message: string; timestamp: Date; costInfo?: { totalCostJPY: number; remainingBudgetJPY: number } }> {
     console.log('[AI Discussion] 議論開始:', {
       topic: topic.substring(0, 50) + '...',
       agentIds: selectedAgentIds,
@@ -794,7 +805,13 @@ export class AIDiscussionEngine {
     // 議論の初期設定
     // Use enhanced internal debate scaffolding (non-breaking)
     const debate = composeDebatePrompts(topic);
+    
+    // 質問明確化の文脈を考慮したプロンプト生成
+    const discussionTopic = clarificationContext ? createDiscussionPromptWithContext(topic, clarificationContext) : topic;
     const systemMessage = `以下のトピックについて、複数のAIエージェントが役員会議を開催します。
+
+${QUESTION_CLARIFICATION_SYSTEM}
+
 
 トピック: ${topic}
 
@@ -821,7 +838,7 @@ ${debate.researchHints}`;
   }
 
   private async *generateDiscussion(agents: Agent[], topic: string, selectedModel: string): AsyncGenerator<{ agent: string; message: string; timestamp: Date }> {
-    const orchestrator = new DiscussionOrchestrator(topic);
+    const orchestrator = new DiscussionOrchestrator(topic, maxBudgetJPY, selectedModel);
     let lastSpeaker = '';
     
     // フェーズ1: 初期意見（全員が発言）
@@ -843,9 +860,10 @@ ${debate.researchHints}`;
         const businessCasePrompt = generateBusinessCasePrompt(topic, agent.name);
         
         const enhancedBehavior = ENHANCED_AGENT_BEHAVIORS[agent.name];
+        const worldClassExpertise = WORLD_CLASS_EXPERTISE[agent.id] || {};
         const enhancedSystemPrompt = specializedPrompt 
-          ? `${agent.systemPrompt}\n\n${specializedPrompt.systemPrompt}\n\n${enhancedBehavior?.discussionStyle || ''}`
-          : agent.systemPrompt;
+          ? `${agent.systemPrompt}\n\n${specializedPrompt.systemPrompt}\n\n${enhancedBehavior?.discussionStyle || ''}\n\n${worldClassExpertise.enhancedPrompt || ''}\n\n${FACT_BASED_DISCUSSION_GUIDELINES}`
+          : `${agent.systemPrompt}\n\n${worldClassExpertise.enhancedPrompt || ''}\n\n${FACT_BASED_DISCUSSION_GUIDELINES}`;
         const currentDebate = composeDebatePrompts(topic);
         const roleBooster = currentDebate.roles.join('\n\n');
 
@@ -857,16 +875,21 @@ ${debate.researchHints}`;
             { role: 'system', content: `検討アプローチ: ${THINKING_MODE_PROMPTS[this.thinkingMode]}` },
             { role: 'user', content: `【${agent.name}として発言】
 
-このトピックについて、あなたの専門分野からの初期分析を詳細に述べてください。
+${worldClassExpertise.questionClarification ? `【質問の明確化】
+${worldClassExpertise.questionClarification}
+
+` : ''}このトピックについて、世界トップレベルの専門性を発揮して分析を行ってください。
 
 ${enhancedBehavior ? `【発言スタイル】
 ${enhancedBehavior.argumentPatterns[0]}` : ''}
 
-必ず以下の点を含めてください：
-1. あなたの専門分野から見た機会とリスク（具体的な数値を含む）
-2. 過去の類似事例や業界ベンチマーク
-3. 他の部門への影響や協力が必要な点
-4. 具体的で実行可能な提案（タイムライン付き）
+【必須要件】
+1. 全ての数値には信頼できる出典を明記（Bloomberg、McKinsey、Statista等）
+2. 統計的分析を含める（回帰分析、信頼区間、p値等）
+3. 業界ベンチマーク（最低3社との定量的比較）
+4. 3つのシナリオ分析（楽観・中立・悲観）と確率
+5. ROI/NPV等の財務的影響の定量化
+6. 実行計画（フェーズ別、KPI付き）
 
 ${businessCasePrompt}
 
@@ -890,10 +913,24 @@ ${specializedPrompt.analysisFramework.slice(0, 3).join('\n')}` : ''}
             agent: agent.id 
           });
 
+          // トークン数を推定
+          const inputTokens = estimateTokens(messages.map(m => m.content).join('\n'));
+          const outputTokens = estimateTokens(message);
+          this.totalTokensUsed.input += inputTokens;
+          this.totalTokensUsed.output += outputTokens;
+          
+          // コスト計算
+          const costBreakdown = calculateDiscussionCost(selectedModel, selectedAgentIds.length, thinkingMode);
+          this.estimatedCostJPY = (this.totalTokensUsed.input / costBreakdown.estimatedTokens.input) * costBreakdown.estimatedCost.jpy;
+          
           yield {
             agent: agent.name,
             message: message.trim(),
-            timestamp: new Date()
+            timestamp: new Date(),
+            costInfo: {
+              totalCostJPY: this.estimatedCostJPY,
+              remainingBudgetJPY: maxBudgetJPY - this.estimatedCostJPY
+            }
           };
 
           // 各発言間に十分な間隔を開ける（API制限対策）
@@ -952,7 +989,8 @@ ${specializedPrompt.analysisFramework.slice(0, 3).join('\n')}` : ''}
           const enhancedBehavior = ENHANCED_AGENT_BEHAVIORS[agent.name];
           const orchestratorPrompt = orchestrator.generateEnhancedPrompt(agent, recentHistory);
           
-          const enhancedSystemPrompt = `${agent.systemPrompt}\n\n${specializedPrompt?.systemPrompt || ''}\n\n${orchestratorPrompt}`;
+          const worldClassExpertise = WORLD_CLASS_EXPERTISE[agent.id] || {};
+          const enhancedSystemPrompt = `${agent.systemPrompt}\n\n${specializedPrompt?.systemPrompt || ''}\n\n${orchestratorPrompt}\n\n${worldClassExpertise.enhancedPrompt || ''}\n\n${FACT_BASED_DISCUSSION_GUIDELINES}\n\n${worldClassExpertise.questionClarification || ''}\n\n${clarificationContext ? '【明確化された情報】\n' + JSON.stringify(clarificationContext, null, 2) : ''}`;
           const currentDebate = composeDebatePrompts(topic);
           const roleBooster = currentDebate.roles.join('\n\n');
 
@@ -960,22 +998,24 @@ ${specializedPrompt.analysisFramework.slice(0, 3).join('\n')}` : ''}
             messages: [
               { role: 'system', content: enhancedSystemPrompt },
               { role: 'system', content: roleBooster },
-              { role: 'system', content: `現在の議論トピック: ${topic}` },
+              { role: 'system', content: `現在の議論トピック: ${discussionTopic}` },
               { role: 'system', content: `検討アプローチ: ${THINKING_MODE_PROMPTS[this.thinkingMode]}` },
               ...recentHistory,
               { role: 'user', content: `【${agent.name}として発言】
 
-前の発言者の具体的な内容を引用して反応してください。
+【世界トップレベルの専門性を発揮してください】
+
+前の発言者の具体的な数値や主張を引用し、あなたの専門分野からの深い分析を加えてください。
 
 ${enhancedBehavior ? `【あなたの議論スタイル】
 ${enhancedBehavior.argumentPatterns[Math.floor(Math.random() * enhancedBehavior.argumentPatterns.length)]}` : ''}
 
-これまでの議論を踏まえ、以下のように発言してください：
-
-1. 前の発言者の「○○」という指摘について、あなたの専門的見地から...
-2. その上で、私からは以下の点を追加したい...
-3. ただし、リスクとしては...
-4. 具体的なアクションとしては...
+【必須要件】
+1. 前の発言から具体的な数値を引用し、その妥当性を統計的に検証
+2. あなたの専門分野のフレームワークを使った分析を追加
+3. 新たなデータソースからの補強情報（出典明記）
+4. 他の発言者との意見の統合とシナジー効果
+5. 定量的なKPIとマイルストーン
 
 ${interactionPrompt}
 
@@ -998,10 +1038,29 @@ ${enhancedBehavior ? `【使える質問例】
               agent: agent.id 
             });
 
+            // トークン数を推定
+            const inputTokens = estimateTokens(recentHistory.map(m => m.content).join('\n'));
+            const outputTokens = estimateTokens(message);
+            this.totalTokensUsed.input += inputTokens;
+            this.totalTokensUsed.output += outputTokens;
+            
+            // コスト計算
+            const costBreakdown = calculateDiscussionCost(selectedModel, selectedAgentIds.length, thinkingMode);
+            this.estimatedCostJPY = (this.totalTokensUsed.input / costBreakdown.estimatedTokens.input) * costBreakdown.estimatedCost.jpy;
+            
+            // 予算超過チェック
+            if (this.estimatedCostJPY > maxBudgetJPY * 0.9) {
+              console.warn(`[コスト警告] 予算の90%に到達: ${this.estimatedCostJPY.toFixed(1)}円 / ${maxBudgetJPY}円`);
+            }
+            
             yield {
               agent: agent.name,
               message: message.trim(),
-              timestamp: new Date()
+              timestamp: new Date(),
+              costInfo: {
+                totalCostJPY: this.estimatedCostJPY,
+                remainingBudgetJPY: maxBudgetJPY - this.estimatedCostJPY
+              }
             };
 
             const postResponseDelay = calculateRequiredDelay(selectedModel);
@@ -1017,15 +1076,34 @@ ${enhancedBehavior ? `【使える質問例】
     try {
       const summary = await this.callAIAPI({
         messages: [
-          { role: 'system', content: `あなたは経験豊富な経営コンサルタントとして、この議論を総括してください。
+          { role: 'system', content: `あなたはMcKinseyシニアパートナーレベルの経営コンサルタントとして、世界トップレベルの総括を作成してください。
 
-【総括に含めるべき要素】
-1. 主要な論点と各部門の見解
-2. 合意に至った点と意見が分かれた点
-3. 特定されたリスクとその対策
-4. 具体的な推奨アクション（優先順位付き）
-5. 実行にあたっての留意事項
-6. 期待される成果と成功指標
+${FACT_BASED_DISCUSSION_GUIDELINES}
+
+【総括に必須の要素】
+1. 【エグゼクティブサマリー】
+   - 意思決定の結論（GO/NO-GO）
+   - 期待されるROIと回収期間
+   - 主要リスクと3つ
+
+2. 【財務的影響】
+   - NPV計算結果（3シナリオ）
+   - 投資額とキャッシュフロー予測
+   - 損益分岐点分析
+
+3. 【戦略的推奨事項】
+   - 優先順位付きアクションアイテム（最大10個）
+   - 各アクションのKPIとオーナー
+   - クリティカルパス
+
+4. 【定量的成功指標】
+   - 短期（6ヶ月）、中期（1年）、長期（3年）のKPI
+   - ベンチマークとの比較
+
+5. 【リスク管理計画】
+   - リスクマトリックス（確率×影響度）
+   - ミティゲーション戦略
+   - コンティンジェンシープラン
 
 以下のフォーマットで構造化してください：
 
@@ -1058,10 +1136,19 @@ ${enhancedBehavior ? `【使える質問例】
       });
 
       if (summary.trim()) {
+        // 最終コスト情報
+        const finalCostInfo = {
+          totalCostJPY: this.estimatedCostJPY,
+          remainingBudgetJPY: maxBudgetJPY - this.estimatedCostJPY
+        };
+        
+        console.log(`[ディスカッション終了] 総コスト: ${this.estimatedCostJPY.toFixed(1)}円, 使用トークン: 入力${this.totalTokensUsed.input}, 出力${this.totalTokensUsed.output}`);
+        
         yield {
           agent: '議論総括',
           message: summary.trim(),
-          timestamp: new Date()
+          timestamp: new Date(),
+          costInfo: finalCostInfo
         };
       }
     } catch (error) {

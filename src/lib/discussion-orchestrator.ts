@@ -5,6 +5,7 @@
 
 import { Agent } from './ai-agents';
 import { ENHANCED_AGENT_BEHAVIORS, DISCUSSION_PHASE_GUIDELINES, INTERACTION_QUESTIONS } from './enhanced-prompts';
+import { calculateMaxMessagesForBudget } from './cost-calculator';
 
 export interface DiscussionContext {
   topic: string;
@@ -20,8 +21,11 @@ export class DiscussionOrchestrator {
   private context: DiscussionContext;
   private speakerHistory: string[] = [];
   private topicEvolution: string[] = [];
+  private maxBudgetJPY: number;
+  private maxMessages: number;
+  private currentModel: string;
 
-  constructor(topic: string) {
+  constructor(topic: string, maxBudgetJPY: number = 100, currentModel: string = 'gpt-4o') {
     this.context = {
       topic,
       phase: 'initial',
@@ -31,6 +35,10 @@ export class DiscussionOrchestrator {
       disagreements: [],
       actionItems: []
     };
+    this.maxBudgetJPY = maxBudgetJPY;
+    this.currentModel = currentModel;
+    // 予算に基づいて最大メッセージ数を計算
+    this.maxMessages = calculateMaxMessagesForBudget(currentModel, maxBudgetJPY, 6);
   }
 
   /**
@@ -182,9 +190,12 @@ ${sampleQuestions}
     const totalSpeaks = this.speakerHistory.length;
     const convergence = this.evaluateConvergence();
     
-    // 発言回数による強制終了（6人で最大12発言）
-    const maxTotalSpeaks = 12; // 最大12発言に制限
-    if (totalSpeaks >= maxTotalSpeaks) return false;
+    // 予算制限による最大メッセージ数
+    const budgetBasedMax = Math.min(this.maxMessages, 12); // 予算とハードリミットの両方を考慮
+    if (totalSpeaks >= budgetBasedMax) {
+      console.log(`[ディスカッション終了] 予算制限（${this.maxBudgetJPY}円）により${budgetBasedMax}メッセージで終了`);
+      return false;
+    }
     
     // 各エージェントが最低1回発言したかチェック
     const uniqueSpeakers = new Set(this.speakerHistory);

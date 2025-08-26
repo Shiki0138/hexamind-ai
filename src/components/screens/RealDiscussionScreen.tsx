@@ -9,6 +9,8 @@ import { analyzeQuestionClarity, createDiscussionPromptWithContext, Clarificatio
 import QuestionClarificationDialog from '@/components/QuestionClarificationDialog';
 import DiscussionVisualizer from '@/components/DiscussionVisualizer';
 import { ChatHistoryManager } from '../../lib/chat-history';
+import CostIndicator from '@/components/CostIndicator';
+import { calculateDiscussionCost } from '@/lib/cost-calculator';
 
 interface Message {
   id: string;
@@ -50,6 +52,8 @@ export default function RealDiscussionScreen({
   const [lastExecutionTime, setLastExecutionTime] = useState<number>(0);
   const [isThrottled, setIsThrottled] = useState(false);
   const [throttleMessage, setThrottleMessage] = useState('');
+  const [currentCostJPY, setCurrentCostJPY] = useState(0);
+  const [maxBudgetJPY, setMaxBudgetJPY] = useState(100); // デフォルト100円
 
   const agentColors: Record<string, string> = {
     'CEO AI': 'bg-purple-500',
@@ -252,7 +256,7 @@ export default function RealDiscussionScreen({
         ? createDiscussionPromptWithContext(topic, context)
         : topic;
       
-      const discussionGenerator = engine.startDiscussion(discussionTopic, agents, thinkingMode);
+      const discussionGenerator = engine.startDiscussion(discussionTopic, agents, thinkingMode, context, maxBudgetJPY);
       
       let messageCount = 0;
       const expectedMessages = agents.length * 4; // 各エージェント約4回発言
@@ -269,6 +273,11 @@ export default function RealDiscussionScreen({
           message: result.message,
           timestamp: result.timestamp
         };
+        
+        // コスト情報の更新
+        if (result.costInfo) {
+          setCurrentCostJPY(result.costInfo.totalCostJPY);
+        }
 
         allMessages.push(newMessage);
         setMessages(prev => [...prev, newMessage]);
@@ -375,6 +384,17 @@ export default function RealDiscussionScreen({
         <div className="mb-6">
           <h1 className="text-2xl font-bold mb-2">AIボード会議</h1>
           <p className="text-slate-300 mb-4">{topic}</p>
+          
+          {/* コストインジケーター */}
+          {isRunning && (
+            <div className="mb-4">
+              <CostIndicator 
+                currentCostJPY={currentCostJPY}
+                budgetJPY={maxBudgetJPY}
+                showDetails={true}
+              />
+            </div>
+          )}
           
           {/* 進行状況 */}
           <div className="w-full bg-slate-700 rounded-full h-2 mb-4">

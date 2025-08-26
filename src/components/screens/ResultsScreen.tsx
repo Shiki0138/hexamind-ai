@@ -17,54 +17,77 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
   onHome
 }) => {
   const [discussionSummary, setDiscussionSummary] = useState({
-    topic: "読み込み中...",
-    duration: "計算中...",
+    topic: "",
+    duration: "",
     participants: [] as string[],
     keyPoints: [] as string[],
     actionItems: [] as string[],
     consensus: ""
   })
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (sessionId) {
-      const chatHistory = new ChatHistoryManager()
-      const sessions = chatHistory.getSessions()
-      const currentSession = sessions.find(s => s.id === sessionId)
+    const loadSessionData = async () => {
+      setIsLoading(true)
+      setError(null)
       
-      if (currentSession) {
-        const duration = currentSession.endedAt 
-          ? Math.round((new Date(currentSession.endedAt).getTime() - new Date(currentSession.startedAt).getTime()) / 1000 / 60)
-          : 0
-        
-        setDiscussionSummary({
-          topic: currentSession.topic,
-          duration: `${duration}分`,
-          participants: currentSession.agents,
-          keyPoints: currentSession.decisions || [],
-          actionItems: currentSession.actionItems || [],
-          consensus: currentSession.summary || "議論の要約を生成中..."
-        })
+      try {
+        if (sessionId) {
+          const chatHistory = new ChatHistoryManager()
+          const sessions = chatHistory.getSessions()
+          const currentSession = sessions.find(s => s.id === sessionId)
+          
+          if (currentSession) {
+            const duration = currentSession.endedAt 
+              ? Math.round((new Date(currentSession.endedAt).getTime() - new Date(currentSession.startedAt).getTime()) / 1000 / 60)
+              : 0
+            
+            // 議論の質を確認
+            if (!currentSession.summary || currentSession.summary === "議論の要約を生成中...") {
+              setError("議論結果の生成が完了していません。しばらくお待ちください。")
+            } else {
+              setDiscussionSummary({
+                topic: currentSession.topic,
+                duration: `${duration}分`,
+                participants: currentSession.agents,
+                keyPoints: currentSession.decisions || [],
+                actionItems: currentSession.actionItems || [],
+                consensus: currentSession.summary
+              })
+            }
+          } else {
+            setError("セッションが見つかりませんでした。")
+          }
+        } else {
+          // セッションIDがない場合は高品質なモックデータを使用
+          setDiscussionSummary({
+            topic: "ニューヨーク市場へのシャンプー製品展開戦略",
+            duration: "18分",
+            participants: ["CEO AI", "CFO AI", "CMO AI", "CTO AI", "COO AI", "悪魔の代弁者"],
+            keyPoints: [
+              "TAM分析：ニューヨークのシャンプー市場は$520M（Statista 2024）、プレミアムセグメントは$156M",
+              "ROI予測：DCF分析によるNPVは$2.3M（WACC 12%、IRR 24.5%）",
+              "競合分析：P&G (35%)、Unilever (22%)、L'Oréal (18%)とのポジショニング",
+              "リスク評価：VaR@95% = $450K、モンテカルロ・シミュレーション(n=10,000)"
+            ],
+            actionItems: [
+              "フェーズ1 (Q1)：デジタルMVPローンチ、CPA目標$12、月限1,000顧客獲得",
+              "フェーズ2 (Q2)：オムニチャネル展開、NPS 45以上達成、LTV/CAC > 3.0",
+              "フェーズ3 (Q3-Q4)：スケール拡大、市場シェア2%獲得、EBITDAマージン15%"
+            ],
+            consensus: "シナリオ分析結果：Base case (60%確率) NPV $2.3M、Bull case (25%) $4.1M、Bear case (15%) -$0.8M。段階的投資アプローチによりリスクを最小化しつつ、リアルオプション価値$0.9Mを確保。GO決定。"
+          })
+        }
+      } catch (err) {
+        setError("データの読み込み中にエラーが発生しました。")
+        console.error('ResultsScreen error:', err)
+      } finally {
+        setIsLoading(false)
       }
-    } else {
-      // セッションIDがない場合はモックデータを使用
-      setDiscussionSummary({
-        topic: "Q4マーケティング戦略の見直し",
-        duration: "15分",
-        participants: ["CEO AI", "CMO AI", "CFO AI"],
-        keyPoints: [
-          "デジタルマーケティング予算を30%増加させる提案",
-          "新規顧客獲得コストの最適化が急務",
-          "競合他社の価格戦略に対する対応策が必要",
-          "ブランド認知度向上のための長期投資を検討"
-        ],
-        actionItems: [
-          "マーケティング部門が新規デジタル広告戦略を1ヶ月以内に策定",
-          "財務部門が予算再配分案を2週間以内に提出",
-          "CEO承認後、実施チームを組成して推進"
-        ],
-        consensus: "Q4のマーケティング戦略について、デジタルシフトを加速させることで全員一致。予算増加は必要だが、ROIを明確にしながら段階的に実施することで合意。"
-      })
     }
+    
+    loadSessionData()
   }, [sessionId])
 
   return (
@@ -77,10 +100,33 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold mb-2">ディスカッション結果</h1>
-          <p className="text-slate-300">{discussionSummary.topic}</p>
+          {!isLoading && <p className="text-slate-300">{discussionSummary.topic}</p>}
         </div>
 
+        {/* Loading State */}
+        {isLoading && (
+          <Card className="mb-6 p-6">
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+              <p className="ml-4 text-slate-300">結果を読み込んでいます...</p>
+            </div>
+          </Card>
+        )}
+
+        {/* Error State */}
+        {error && !isLoading && (
+          <Card className="mb-6 p-6 border-red-500">
+            <div className="text-center py-8">
+              <p className="text-red-400 mb-4">{error}</p>
+              <Button onClick={onNewDiscussion} variant="outline">
+                新しいディスカッションを開始
+              </Button>
+            </div>
+          </Card>
+        )}
+
         {/* Summary Card */}
+        {!isLoading && !error && (
         <Card className="mb-6 p-6">
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
@@ -98,8 +144,10 @@ const ResultsScreen: React.FC<ResultsScreenProps> = ({
             <p className="text-slate-300">{discussionSummary.consensus}</p>
           </div>
         </Card>
+        )}
 
         {/* Key Points */}
+        {!isLoading && !error && (
         <Card className="mb-6 p-6">
           <h3 className="font-semibold mb-4 flex items-center">
             <ChevronDownIcon className="w-5 h-5 mr-2" />
