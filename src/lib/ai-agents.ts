@@ -834,7 +834,7 @@ ${debate.researchHints}`;
 
     this.conversationHistory = [{ role: 'system', content: systemMessage }];
 
-    yield* this.generateDiscussion(selectedAgents, topic, selectedModel, maxBudgetJPY, selectedAgentIds, thinkingMode);
+    yield* this.generateDiscussion(selectedAgents, topic, selectedModel, maxBudgetJPY, selectedAgentIds, thinkingMode, clarificationContext);
   }
 
   private async *generateDiscussion(
@@ -843,7 +843,8 @@ ${debate.researchHints}`;
     selectedModel: string, 
     maxBudgetJPY: number = 100,
     selectedAgentIds: string[],
-    thinkingMode: ThinkingMode
+    thinkingMode: ThinkingMode,
+    clarificationContext?: ClarificationContext
   ): AsyncGenerator<{ agent: string; message: string; timestamp: Date; costInfo?: { totalCostJPY: number; remainingBudgetJPY: number } }> {
     const orchestrator = new DiscussionOrchestrator(topic, maxBudgetJPY, selectedModel);
     let lastSpeaker = '';
