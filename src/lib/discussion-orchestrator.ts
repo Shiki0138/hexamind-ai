@@ -182,8 +182,8 @@ ${sampleQuestions}
     const totalSpeaks = this.speakerHistory.length;
     const convergence = this.evaluateConvergence();
     
-    // 発言回数による強制終了（6人で最大12発言）
-    const maxTotalSpeaks = 12;
+    // 発言回数による強制終了（6人で最大18発言）
+    const maxTotalSpeaks = 18; // 12→18に増加（各エージェント平均3回発言）
     if (totalSpeaks >= maxTotalSpeaks) return false;
     
     // 各エージェントが最低1回発言したかチェック
@@ -191,12 +191,12 @@ ${sampleQuestions}
     const minSpeaksPerAgent = 6; // 全員が1回ずつ
     if (totalSpeaks < minSpeaksPerAgent) return true;
     
-    // 統合フェーズでは2発言で終了
-    if (this.context.phase === 'synthesis' && totalSpeaks >= 10) {
+    // 統合フェーズでは3-4発言で終了
+    if (this.context.phase === 'synthesis' && totalSpeaks >= 15) {
       return false;
     }
     
     // 適度な収束で終了
-    return convergence < 0.6 && totalSpeaks < 10;
+    return convergence < 0.6 && totalSpeaks < 15;
   }
 }

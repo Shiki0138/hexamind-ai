@@ -820,7 +820,14 @@ ${debate.researchHints}`;
     let lastSpeaker = '';
     
     // フェーズ1: 初期意見（全員が発言）
-    for (const agent of agents) {
+    for (let i = 0; i < agents.length; i++) {
+      const agent = agents[i];
+      
+      // API制限回避のため、各エージェント間に遅延を追加（最初以外）
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 3000 + Math.random() * 2000)); // 3-5秒の遅延
+      }
+      
       try {
         // 専門的なプロンプトを取得
         const specializedPrompt = SPECIALIZED_AGENT_PROMPTS[agent.name];
@@ -880,8 +887,8 @@ ${specializedPrompt.analysisFramework.slice(0, 3).join('\n')}` : ''}
             timestamp: new Date()
           };
 
-          // 各発言間に少し間隔を開ける
-          await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 1000));
+          // 各発言間に十分な間隔を開ける（API制限対策）
+          await new Promise(resolve => setTimeout(resolve, 4000 + Math.random() * 2000)); // 4-6秒
         }
       } catch (error) {
         console.error(`Error generating response for ${agent.name}:`, error);
@@ -899,6 +906,11 @@ ${specializedPrompt.analysisFramework.slice(0, 3).join('\n')}` : ''}
     
     while (orchestrator.shouldContinueDiscussion() && discussionIterations < maxIterations) {
       discussionIterations++;
+      
+      // フェーズ2でも各発言間に遅延を追加（API制限対策）
+      if (discussionIterations > 1) {
+        await new Promise(resolve => setTimeout(resolve, 4000 + Math.random() * 2000)); // 4-6秒
+      }
       // 最後の発言内容に基づいて次の発言者を動的に選択
       const lastMessage = this.conversationHistory[this.conversationHistory.length - 1];
       const nextSpeaker = orchestrator.selectNextSpeaker(
