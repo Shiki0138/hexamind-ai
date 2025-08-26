@@ -228,16 +228,28 @@ export async function GET(request: NextRequest) {
   const clientIdParam = searchParams.get('clientId');
   
   if (action === 'reset' && clientIdParam) {
-    // レート制限をリセット
-    resetRateLimit(clientIdParam);
+    // レート制限をリセット機能は一時的に無効化
+    // TODO: resetRateLimit関数の実装後に有効化
     return NextResponse.json({
       success: true,
-      message: `Rate limit reset for client: ${clientIdParam}`
+      message: `Rate limit reset functionality is temporarily disabled`
     });
   }
   
   if (action === 'status') {
-    return NextResponse.json({ status: 'ok' });
+    // 環境変数の状態を返す（デバッグ用）
+    return NextResponse.json({ 
+      status: 'ok',
+      env: {
+        NODE_ENV: process.env.NODE_ENV,
+        DISABLE_RATE_LIMIT: process.env.DISABLE_RATE_LIMIT,
+        hasGoogleKey: !!process.env.GOOGLE_AI_API_KEY,
+        hasOpenAIKey: !!process.env.OPENAI_API_KEY
+      },
+      rateLimit: {
+        isDisabled: process.env.NODE_ENV === 'development' || process.env.DISABLE_RATE_LIMIT === 'true'
+      }
+    });
   }
   
   return NextResponse.json(

@@ -7,7 +7,7 @@ import { selectStore } from './rate-limit-store';
 type Identifier = string; // userId or ip
 
 const WINDOW_MS = 60_000;
-const LIMIT_PER_WINDOW = 200; // 100→200に更に緩和（AI議論システム用）
+const LIMIT_PER_WINDOW = 1000; // 200→1000に大幅緩和（サーバーレス環境対応）
 const store = selectStore();
 
 function getClientIp(req: Request): string | undefined {
@@ -52,6 +52,13 @@ export function buildRateHeaders(res: RateLimitResult): HeadersInit {
 }
 
 export async function enforceRateLimit(req: Request, ctx: RateLimitContext) {
+  // デバッグ: 環境変数の状態を確認
+  console.log('[Rate Limit] 環境変数チェック:', {
+    NODE_ENV: process.env.NODE_ENV,
+    DISABLE_RATE_LIMIT: process.env.DISABLE_RATE_LIMIT,
+    isDisabled: process.env.NODE_ENV === 'development' || process.env.DISABLE_RATE_LIMIT === 'true'
+  });
+  
   // 開発中はレート制限をスキップ
   if (process.env.NODE_ENV === 'development' || process.env.DISABLE_RATE_LIMIT === 'true') {
     return null;
