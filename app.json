@@ -1,0 +1,19 @@
+{
+  "name": "hexamind-ai",
+  "description": "HexaMind AI - Six Executive Minds, One Powerful Decision",
+  "repository": "https://github.com/user/hexamind-ai",
+  "env": {
+    "NODE_ENV": {
+      "description": "Node environment",
+      "value": "production"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ],
+  "scripts": {
+    "postdeploy": "npm run build"
+  }
+}

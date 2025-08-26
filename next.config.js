@@ -1,7 +1,6 @@
-import { withSentryConfig } from "@sentry/nextjs";
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
   webpack: (config, { isServer }) => {
     // Puppeteerはサーバーサイドでのみ使用
     if (!isServer) {
@@ -26,10 +25,6 @@ const nextConfig: NextConfig = {
   eslint: {
     // 本番デプロイ時はESLintエラーを無視
     ignoreDuringBuilds: true,
-  },
-  // ビルド時の最適化を無効化（エラー回避のため）
-  experimental: {
-    optimizePackageImports: [],
   },
 
   // セキュリティヘッダー
@@ -60,25 +55,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-// Sentry設定
-const sentryWebpackPluginOptions = {
-  // ソースマップを本番環境のみアップロード
-  silent: process.env.NODE_ENV !== 'development',
-  
-  // Sentry組織・プロジェクト情報（必要に応じて設定）
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-  
-  // デバッグ情報
-  debug: process.env.NODE_ENV === 'development',
-  
-  // ソースマップの除外
-  widenClientFileUpload: true,
-  tunnelRoute: "/monitoring",
-  hideSourceMaps: true,
-  disableLogger: true,
-};
-
-export default process.env.SENTRY_DSN 
-  ? withSentryConfig(nextConfig, sentryWebpackPluginOptions)
-  : nextConfig;
+module.exports = nextConfig;
