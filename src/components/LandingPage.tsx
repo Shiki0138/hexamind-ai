@@ -111,7 +111,34 @@ const LandingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white">
+    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white relative">
+      {/* Background Image */}
+      <div 
+        className="fixed inset-0 opacity-8 bg-center bg-no-repeat bg-cover"
+        style={{
+          backgroundImage: "url('/executive-meeting.svg')",
+          backgroundSize: '85%',
+          backgroundPosition: 'center 25%'
+        }}
+      />
+      
+      {/* Additional Background Effects */}
+      <div className="fixed inset-0 bg-gradient-to-b from-slate-900/80 via-transparent to-slate-900/90" />
+      <div className="fixed inset-0 bg-gradient-to-r from-slate-900/50 via-transparent to-slate-900/50" />
+      
+      {/* Subtle animated overlay for depth */}
+      <motion.div 
+        className="fixed inset-0 opacity-5"
+        animate={{ 
+          background: [
+            'radial-gradient(circle at 20% 50%, #3b82f6 0%, transparent 50%)',
+            'radial-gradient(circle at 80% 50%, #8b5cf6 0%, transparent 50%)',
+            'radial-gradient(circle at 20% 50%, #3b82f6 0%, transparent 50%)'
+          ] 
+        }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <div className="relative z-10">
       {/* Navigation */}
       <nav className="fixed top-0 w-full bg-slate-900/90 backdrop-blur-sm border-b border-slate-700 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -158,8 +185,8 @@ const LandingPage = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.8 }}
           >
-            McKinsey級の分析力を持つ6人のAI専門家が、<br />
-            あらゆるビジネス課題を多角的に分析・提案
+            McKinsey級の分析力を持つ6人のAI専門家による<br />
+            <span className="text-blue-300 font-semibold">バーチャル役員会議</span>で、あらゆるビジネス課題を解決
           </motion.p>
 
           <motion.div 
@@ -481,6 +508,7 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 };
