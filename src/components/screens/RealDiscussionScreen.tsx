@@ -12,6 +12,7 @@ import { ChatHistoryManager } from '../../lib/chat-history';
 import CostIndicator from '@/components/CostIndicator';
 import { calculateDiscussionCost } from '@/lib/cost-calculator';
 import DetailedResultsScreen from './DetailedResultsScreen';
+import { DiscussionStorageManager } from '@/lib/discussion-storage';
 
 interface Message {
   id: string;
@@ -345,6 +346,53 @@ export default function RealDiscussionScreen({
       // 議論時間を計算
       const duration = Math.round((Date.now() - startTime) / 1000 / 60);
       setDiscussionDuration(`${duration}分`);
+      
+      // 議論内容を永続化保存
+      try {
+        const storage = new DiscussionStorageManager();
+        const savedDiscussion = {
+          id: newSessionId || `discussion-${Date.now()}`,
+          topic: context ? createDiscussionPromptWithContext(topic, context) : topic,
+          agents: agents,
+          thinkingMode: thinkingMode,
+          messages: allMessages.map(msg => ({
+            id: msg.id,
+            agent: msg.agent,
+            message: msg.message,
+            timestamp: msg.timestamp
+          })),
+          startTime: new Date(startTime),
+          endTime: new Date(),
+          duration: duration,
+          costInfo: {
+            totalCostJPY: currentCostJPY,
+            model: 'gpt-4o',
+            totalTokens: Math.round(currentCostJPY / 0.0025)
+          },
+          summary: discussionSummary ? {
+            consensus: discussionSummary.summary,
+            keyDecisions: discussionSummary.decisions,
+            actionItems: discussionSummary.actionItems,
+            risks: [],
+            agentSummaries: discussionSummary.agentSummaries.map(summary => ({
+              agent: summary.agent,
+              keyPoints: summary.keyPoints,
+              messageCount: allMessages.filter(m => m.agent === summary.agent).length,
+              averageMessageLength: Math.round(
+                allMessages.filter(m => m.agent === summary.agent)
+                  .reduce((sum, m) => sum + m.message.length, 0) / 
+                allMessages.filter(m => m.agent === summary.agent).length
+              ),
+              expertise: []
+            }))
+          } : undefined
+        };
+        
+        storage.saveDiscussion(savedDiscussion);
+        console.log(`[Storage] 議論を保存しました: ${savedDiscussion.id}`);
+      } catch (storageError) {
+        console.error('議論の保存に失敗しました:', storageError);
+      }
       
     } catch (error) {
       console.error('Discussion error:', error);

@@ -13,6 +13,7 @@ import {
   UserGroupIcon,
   ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
+import { DiscussionStorageManager } from '@/lib/discussion-storage';
 
 interface Message {
   id: string;
@@ -317,20 +318,71 @@ export default function DetailedResultsScreen({
         <div className="flex flex-col sm:flex-row gap-4">
           <Button
             onClick={() => {
-              // 詳細レポートをテキストとしてコピー
-              const reportText = `議論レポート: ${topic}\n\n` +
-                `実行時間: ${duration}\n` +
-                `発言数: ${messages.length}件\n\n` +
-                messages.map(msg => 
-                  `【${msg.agent}】 ${formatTime(msg.timestamp)}\n${msg.message}\n\n`
-                ).join('');
+              // 概要版テキストを生成してコピー
+              const storage = new DiscussionStorageManager();
+              const savedDiscussion = {
+                id: `temp-${Date.now()}`,
+                topic,
+                agents: [...new Set(messages.map(m => m.agent))].filter(a => a !== '議論総括'),
+                thinkingMode: 'normal',
+                messages: messages.map(msg => ({
+                  id: msg.id,
+                  agent: msg.agent,
+                  message: msg.message,
+                  timestamp: msg.timestamp
+                })),
+                startTime: messages[0]?.timestamp || new Date(),
+                endTime: messages[messages.length - 1]?.timestamp || new Date(),
+                duration: parseInt(duration.replace('分', '')) || 0,
+                costInfo: {
+                  totalCostJPY: costInfo?.totalCostJPY || 0,
+                  model: costInfo?.model || 'gpt-4o',
+                  totalTokens: Math.round((costInfo?.totalCostJPY || 0) / 0.0025)
+                }
+              };
               
-              navigator.clipboard.writeText(reportText);
+              const summaryText = storage.generateSummaryText(savedDiscussion);
+              navigator.clipboard.writeText(summaryText);
             }}
             className="flex-1 flex items-center justify-center"
           >
             <ShareIcon className="w-5 h-5 mr-2" />
-            レポートをコピー
+            概要をコピー
+          </Button>
+          
+          <Button
+            onClick={() => {
+              // 詳細版テキストを生成してコピー
+              const storage = new DiscussionStorageManager();
+              const savedDiscussion = {
+                id: `temp-${Date.now()}`,
+                topic,
+                agents: [...new Set(messages.map(m => m.agent))].filter(a => a !== '議論総括'),
+                thinkingMode: 'normal',
+                messages: messages.map(msg => ({
+                  id: msg.id,
+                  agent: msg.agent,
+                  message: msg.message,
+                  timestamp: msg.timestamp
+                })),
+                startTime: messages[0]?.timestamp || new Date(),
+                endTime: messages[messages.length - 1]?.timestamp || new Date(),
+                duration: parseInt(duration.replace('分', '')) || 0,
+                costInfo: {
+                  totalCostJPY: costInfo?.totalCostJPY || 0,
+                  model: costInfo?.model || 'gpt-4o',
+                  totalTokens: Math.round((costInfo?.totalCostJPY || 0) / 0.0025)
+                }
+              };
+              
+              const detailedText = storage.generateDetailedText(savedDiscussion);
+              navigator.clipboard.writeText(detailedText);
+            }}
+            variant="outline"
+            className="flex-1 flex items-center justify-center"
+          >
+            <DocumentTextIcon className="w-5 h-5 mr-2" />
+            詳細レポートをコピー
           </Button>
           
           <Button
