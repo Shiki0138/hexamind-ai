@@ -161,8 +161,8 @@ export default function DetailedResultsScreen({
       >
         {/* ヘッダー */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2 flex items-center">
-            <DocumentTextIcon className="w-8 h-8 mr-3" />
+          <h1 className="text-3xl font-bold mb-2 flex items-center text-white">
+            <DocumentTextIcon className="w-8 h-8 mr-3 text-white" />
             議論詳細レポート
           </h1>
           <p className="text-slate-300 mb-4">{topic}</p>
