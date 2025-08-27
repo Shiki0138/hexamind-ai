@@ -181,7 +181,7 @@ export default function DetailedResultsScreen({
               <UserGroupIcon className="w-4 h-4 mr-2" />
               参加者: {agentSummaries.length}名
             </div>
-            {costInfo && (
+            {false && costInfo && (
               <div className="flex items-center bg-slate-800 rounded-lg px-3 py-2">
                 <span className="text-green-400">💰</span>
                 <span className="ml-2">コスト: ¥{costInfo.totalCostJPY.toFixed(1)}</span>

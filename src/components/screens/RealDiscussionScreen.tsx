@@ -479,7 +479,7 @@ export default function RealDiscussionScreen({
           <p className="text-slate-300 mb-4">{topic}</p>
           
           {/* コストインジケーター */}
-          {isRunning && (
+          {false && isRunning && (
             <div className="mb-4">
               <CostIndicator 
                 currentCostJPY={currentCostJPY}
