@@ -987,7 +987,7 @@ ${worldClassExpertise.questionClarification ? `【質問の明確化】\n${world
             messages: [
               { role: 'system', content: enhancedSystemPrompt },
               { role: 'system', content: roleBooster },
-              { role: 'system', content: `現在の議論トピック: ${discussionTopic}` },
+              { role: 'system', content: `現在の議論トピック: ${topic}` },
               { role: 'system', content: `検討アプローチ: ${THINKING_MODE_PROMPTS[this.thinkingMode]}` },
               ...recentHistory,
               { role: 'user', content: `【${agent.name}として発言】
