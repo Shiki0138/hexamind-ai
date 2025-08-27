@@ -11,6 +11,7 @@ import DiscussionVisualizer from '@/components/DiscussionVisualizer';
 import { ChatHistoryManager } from '../../lib/chat-history';
 import CostIndicator from '@/components/CostIndicator';
 import { calculateDiscussionCost } from '@/lib/cost-calculator';
+import DetailedResultsScreen from './DetailedResultsScreen';
 
 interface Message {
   id: string;
@@ -24,13 +25,17 @@ interface RealDiscussionScreenProps {
   agents: string[];
   thinkingMode?: ThinkingMode;
   onComplete: (sessionId?: string) => void;
+  onHome?: () => void;
+  onNewDiscussion?: () => void;
 }
 
 export default function RealDiscussionScreen({
   topic,
   agents,
   thinkingMode = 'normal',
-  onComplete
+  onComplete,
+  onHome,
+  onNewDiscussion
 }: RealDiscussionScreenProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isRunning, setIsRunning] = useState(false);
@@ -54,6 +59,8 @@ export default function RealDiscussionScreen({
   const [throttleMessage, setThrottleMessage] = useState('');
   const [currentCostJPY, setCurrentCostJPY] = useState(0);
   const [maxBudgetJPY, setMaxBudgetJPY] = useState(100); // デフォルト100円
+  const [showDetailedResults, setShowDetailedResults] = useState(false);
+  const [discussionDuration, setDiscussionDuration] = useState<string>('0分');
 
   const agentColors: Record<string, string> = {
     'CEO AI': 'bg-purple-500',
@@ -228,6 +235,8 @@ export default function RealDiscussionScreen({
     setError(null);
     setMessages([]);
     setProgress(0);
+    setShowDetailedResults(false);
+    const startTime = Date.now();
 
     try {
       const engine = new AIDiscussionEngine();
@@ -332,6 +341,11 @@ export default function RealDiscussionScreen({
       }
 
       setProgress(100);
+      
+      // 議論時間を計算
+      const duration = Math.round((Date.now() - startTime) / 1000 / 60);
+      setDiscussionDuration(`${duration}分`);
+      
     } catch (error) {
       console.error('Discussion error:', error);
       setError('ディスカッション中にエラーが発生しました: ' + (error as Error).message);
@@ -375,6 +389,37 @@ export default function RealDiscussionScreen({
       }, mockMsg.delay);
     });
   };
+
+  // 詳細結果画面を表示
+  if (showDetailedResults && messages.length > 0) {
+    return (
+      <DetailedResultsScreen
+        topic={topic}
+        messages={messages}
+        duration={discussionDuration}
+        costInfo={{
+          totalCostJPY: currentCostJPY,
+          model: 'gpt-4o'
+        }}
+        onNewDiscussion={() => {
+          if (onNewDiscussion) {
+            onNewDiscussion();
+          } else {
+            setShowDetailedResults(false);
+            setMessages([]);
+            setProgress(0);
+          }
+        }}
+        onHome={() => {
+          if (onHome) {
+            onHome();
+          } else {
+            setShowDetailedResults(false);
+          }
+        }}
+      />
+    );
+  }
 
   return (
     <>
@@ -579,10 +624,20 @@ export default function RealDiscussionScreen({
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center"
+            className="flex flex-col sm:flex-row gap-4 justify-center"
           >
-            <Button onClick={() => onComplete(sessionId || undefined)} className="w-full max-w-md">
-              詳細な結果を確認する
+            <Button 
+              onClick={() => setShowDetailedResults(true)} 
+              className="flex-1 max-w-md"
+            >
+              📄 詳細な議事録を表示
+            </Button>
+            <Button 
+              onClick={() => onComplete(sessionId || undefined)} 
+              variant="outline"
+              className="flex-1 max-w-md"
+            >
+              簡易結果を表示
             </Button>
           </motion.div>
         )}
