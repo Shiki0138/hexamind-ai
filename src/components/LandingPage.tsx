@@ -111,33 +111,53 @@ const LandingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white relative">
-      {/* Background Image */}
-      <div 
-        className="fixed inset-0 opacity-8 bg-center bg-no-repeat bg-cover"
-        style={{
-          backgroundImage: "url('/executive-meeting.svg')",
-          backgroundSize: '85%',
-          backgroundPosition: 'center 25%'
-        }}
-      />
+    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden">
+      {/* Background Pattern - Executive Meeting Room */}
+      <div className="fixed inset-0">
+        {/* Meeting room silhouette */}
+        <div className="absolute inset-0 opacity-10">
+          {/* Conference table */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-slate-700 rounded-[150px] opacity-30" />
+          
+          {/* Chairs around table */}
+          <div className="absolute left-[20%] top-[35%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
+          <div className="absolute left-[35%] top-[25%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
+          <div className="absolute left-[50%] top-[20%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
+          <div className="absolute left-[65%] top-[25%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
+          <div className="absolute left-[80%] top-[35%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
+          
+          <div className="absolute left-[20%] top-[55%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
+          <div className="absolute left-[35%] top-[65%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
+          <div className="absolute left-[50%] top-[70%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
+          <div className="absolute left-[65%] top-[65%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
+          <div className="absolute left-[80%] top-[55%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
+          
+          {/* Executive figures */}
+          <div className="absolute left-[20%] top-[30%] w-12 h-12 bg-slate-500 rounded-full opacity-30" />
+          <div className="absolute left-[35%] top-[20%] w-12 h-12 bg-slate-500 rounded-full opacity-30" />
+          <div className="absolute left-[50%] top-[15%] w-12 h-12 bg-slate-500 rounded-full opacity-30" />
+          <div className="absolute left-[65%] top-[20%] w-12 h-12 bg-slate-500 rounded-full opacity-30" />
+          <div className="absolute left-[80%] top-[30%] w-12 h-12 bg-slate-500 rounded-full opacity-30" />
+          
+          {/* Presentation screen */}
+          <div className="absolute left-1/2 top-[5%] -translate-x-1/2 w-[400px] h-[80px] bg-slate-800 rounded-lg opacity-20" />
+        </div>
+      </div>
       
       {/* Additional Background Effects */}
-      <div className="fixed inset-0 bg-gradient-to-b from-slate-900/80 via-transparent to-slate-900/90" />
-      <div className="fixed inset-0 bg-gradient-to-r from-slate-900/50 via-transparent to-slate-900/50" />
+      <div className="fixed inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/50 to-slate-900/90" />
+      <div className="fixed inset-0 bg-gradient-to-r from-slate-900/60 via-transparent to-slate-900/60" />
       
       {/* Subtle animated overlay for depth */}
       <motion.div 
-        className="fixed inset-0 opacity-5"
+        className="fixed inset-0"
         animate={{ 
-          background: [
-            'radial-gradient(circle at 20% 50%, #3b82f6 0%, transparent 50%)',
-            'radial-gradient(circle at 80% 50%, #8b5cf6 0%, transparent 50%)',
-            'radial-gradient(circle at 20% 50%, #3b82f6 0%, transparent 50%)'
-          ] 
+          opacity: [0.02, 0.05, 0.02]
         }}
-        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-      />
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-purple-600/10" />
+      </motion.div>
       <div className="relative z-10">
       {/* Navigation */}
       <nav className="fixed top-0 w-full bg-slate-900/90 backdrop-blur-sm border-b border-slate-700 z-50">
