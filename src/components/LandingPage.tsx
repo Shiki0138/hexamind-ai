@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ChartBarIcon, 
@@ -20,10 +21,62 @@ import { Card } from '@/components/ui/Card';
 const LandingPage = () => {
   const [activeDemo, setActiveDemo] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+  const searchParams = useSearchParams();
+  const modeParam = (searchParams.get('mode') || searchParams.get('presentation') || '').toLowerCase();
+  const isPresentation = modeParam === 'presentation' || modeParam === '1' || modeParam === 'true' || !searchParams.get('mode'); // デフォルトでtrue
+  const bgParam = (searchParams.get('bg') || searchParams.get('video') || '').toLowerCase();
+  const useVideoBg = bgParam === 'video' || bgParam === '1' || bgParam === 'true' || !searchParams.get('bg'); // デフォルトでtrue
+
+  // Slide navigation (presentation mode)
+  const [activeSlide, setActiveSlide] = useState(0);
+  const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const registerSlideRef = (idx: number) => (el: HTMLDivElement | null) => {
+    slideRefs.current[idx] = el;
+  };
 
   useEffect(() => {
     setIsVisible(true);
   }, []);
+
+  // Observe slides to update progress (presentation mode only)
+  useEffect(() => {
+    if (!isPresentation) return;
+    const slides = slideRefs.current.filter(Boolean) as HTMLDivElement[];
+    if (slides.length === 0) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
+            const idx = slides.indexOf(entry.target as HTMLDivElement);
+            if (idx !== -1) setActiveSlide(idx);
+          }
+        });
+      },
+      { threshold: [0.6] }
+    );
+    slides.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [isPresentation]);
+
+  // Keyboard navigation (Up/Down) in presentation mode
+  useEffect(() => {
+    if (!isPresentation) return;
+    const onKey = (e: KeyboardEvent) => {
+      const keysNext = ['ArrowDown', 'PageDown', ' '];
+      const keysPrev = ['ArrowUp', 'PageUp'];
+      if (keysNext.includes(e.key)) {
+        e.preventDefault();
+        const next = Math.min(activeSlide + 1, slideRefs.current.length - 1);
+        slideRefs.current[next]?.scrollIntoView({ behavior: 'smooth' });
+      } else if (keysPrev.includes(e.key)) {
+        e.preventDefault();
+        const prev = Math.max(activeSlide - 1, 0);
+        slideRefs.current[prev]?.scrollIntoView({ behavior: 'smooth' });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isPresentation, activeSlide]);
 
   const demoMessages = [
     { agent: 'CEO AI', message: '新市場参入について戦略的視点から分析します。TAM約50億円の市場で、競合優位性を確保するには...' },
@@ -111,42 +164,43 @@ const LandingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden">
-      {/* Background Pattern - Executive Meeting Room */}
-      <div className="fixed inset-0">
-        {/* Meeting room silhouette */}
-        <div className="absolute inset-0 opacity-10">
-          {/* Conference table */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-slate-700 rounded-[150px] opacity-30" />
-          
-          {/* Chairs around table */}
-          <div className="absolute left-[20%] top-[35%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
-          <div className="absolute left-[35%] top-[25%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
-          <div className="absolute left-[50%] top-[20%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
-          <div className="absolute left-[65%] top-[25%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
-          <div className="absolute left-[80%] top-[35%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
-          
-          <div className="absolute left-[20%] top-[55%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
-          <div className="absolute left-[35%] top-[65%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
-          <div className="absolute left-[50%] top-[70%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
-          <div className="absolute left-[65%] top-[65%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
-          <div className="absolute left-[80%] top-[55%] w-16 h-20 bg-slate-600 rounded-t-full opacity-20" />
-          
-          {/* Executive figures */}
-          <div className="absolute left-[20%] top-[30%] w-12 h-12 bg-slate-500 rounded-full opacity-30" />
-          <div className="absolute left-[35%] top-[20%] w-12 h-12 bg-slate-500 rounded-full opacity-30" />
-          <div className="absolute left-[50%] top-[15%] w-12 h-12 bg-slate-500 rounded-full opacity-30" />
-          <div className="absolute left-[65%] top-[20%] w-12 h-12 bg-slate-500 rounded-full opacity-30" />
-          <div className="absolute left-[80%] top-[30%] w-12 h-12 bg-slate-500 rounded-full opacity-30" />
-          
-          {/* Presentation screen */}
-          <div className="absolute left-1/2 top-[5%] -translate-x-1/2 w-[400px] h-[80px] bg-slate-800 rounded-lg opacity-20" />
-        </div>
-      </div>
+    <div className={`${isPresentation ? 'h-screen overflow-y-scroll snap-y snap-mandatory' : 'min-h-screen'} bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white relative overflow-hidden`}>
+      {/* Background: image or video (faint) */}
+      {useVideoBg ? (
+        <video
+          className="pointer-events-none fixed inset-0 z-0 w-full h-full object-cover"
+          src="/meeting-bg.mp4"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          poster="/meeting-bg.svg"
+          aria-hidden="true"
+          style={{ opacity: 0.35, objectPosition: '50% 20%' }}
+        />
+      ) : (
+        <div
+          className="pointer-events-none fixed inset-0 z-0 bg-center bg-cover bg-no-repeat"
+          style={{
+            backgroundImage: "url('/meeting-bg.svg')",
+            opacity: 0.33,
+            backgroundPosition: 'center 20%'
+          }}
+        />
+      )}
       
-      {/* Additional Background Effects */}
-      <div className="fixed inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/50 to-slate-900/90" />
-      <div className="fixed inset-0 bg-gradient-to-r from-slate-900/60 via-transparent to-slate-900/60" />
+      {/* Additional Background Effects (light overlays) */}
+      <div className="pointer-events-none fixed inset-0 z-[1] bg-gradient-to-b from-slate-900/30 via-slate-900/10 to-slate-900/40" />
+      <div className="pointer-events-none fixed inset-0 z-[1] bg-gradient-to-r from-slate-900/15 via-transparent to-slate-900/15" />
+      {/* Center highlight to reveal image around hero */}
+      <div
+        className="pointer-events-none fixed inset-0 z-[2]"
+        style={{
+          background:
+            'radial-gradient(60% 40% at 50% 32%, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.06) 60%, rgba(0,0,0,0.0) 100%)'
+        }}
+      />
       
       {/* Subtle animated overlay for depth */}
       <motion.div 
@@ -178,9 +232,10 @@ const LandingPage = () => {
         </div>
       </nav>
 
-      {/* Hero Section */}
+      {/* Hero Slide */}
+      <div ref={registerSlideRef(0)} className={isPresentation ? 'min-h-screen snap-start flex items-center' : ''}>
       <motion.section 
-        className="pt-32 pb-20 px-4 sm:px-6 lg:px-8"
+        className={`${isPresentation ? 'w-full pt-24 pb-16' : 'pt-32 pb-20'} px-4 sm:px-6 lg:px-8`}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 20 }}
         transition={{ duration: 0.8 }}
@@ -265,9 +320,11 @@ const LandingPage = () => {
           </motion.div>
         </div>
       </motion.section>
+      </div>
 
-      {/* Problem Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-slate-800/30">
+      {/* Problem Slide */}
+      <div ref={registerSlideRef(1)} className={isPresentation ? 'min-h-screen snap-start flex items-center' : ''}>
+      <section className={`${isPresentation ? 'w-full py-16' : 'py-20'} px-4 sm:px-6 lg:px-8 bg-slate-800/30`}>
         <div className="max-w-7xl mx-auto">
           <motion.div 
             className="text-center mb-16"
@@ -304,9 +361,11 @@ const LandingPage = () => {
           </motion.div>
         </div>
       </section>
+      </div>
 
-      {/* Solution Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
+      {/* Solution Slide */}
+      <div ref={registerSlideRef(2)} className={isPresentation ? 'min-h-screen snap-start flex items-center' : ''}>
+      <section className={`${isPresentation ? 'w-full py-16' : 'py-20'} px-4 sm:px-6 lg:px-8`}>
         <div className="max-w-7xl mx-auto">
           <motion.div 
             className="text-center mb-16"
@@ -349,9 +408,11 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+      </div>
 
-      {/* Use Cases Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-slate-800/30">
+      {/* Use Cases Slide */}
+      <div ref={registerSlideRef(3)} className={isPresentation ? 'min-h-screen snap-start flex items-center' : ''}>
+      <section className={`${isPresentation ? 'w-full py-16' : 'py-20'} px-4 sm:px-6 lg:px-8 bg-slate-800/30`}>
         <div className="max-w-7xl mx-auto">
           <motion.div 
             className="text-center mb-16"
@@ -382,9 +443,11 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+      </div>
 
-      {/* Pricing Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8" id="pricing">
+      {/* Pricing Slide */}
+      <div ref={registerSlideRef(4)} className={isPresentation ? 'min-h-screen snap-start flex items-center' : ''}>
+      <section className={`${isPresentation ? 'w-full py-16' : 'py-20'} px-4 sm:px-6 lg:px-8`} id="pricing">
         <div className="max-w-7xl mx-auto">
           <motion.div 
             className="text-center mb-16"
@@ -457,9 +520,12 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+      </div>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-900/20 to-purple-900/20">
+      {/* CTA Slide */}
+      <div ref={registerSlideRef(5)} className={isPresentation ? 'min-h-screen snap-start flex items-center' : ''}>
+      <section className={`${isPresentation ? 'w-full py-16' : 'py-20'} px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-900/20 to-purple-900/20`}>
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -480,8 +546,10 @@ const LandingPage = () => {
           </motion.div>
         </div>
       </section>
+      </div>
 
       {/* Footer */}
+      {/* Footer (not a slide; stays after flow) */}
       <footer className="py-16 px-4 sm:px-6 lg:px-8 bg-slate-900 border-t border-slate-700">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
@@ -528,6 +596,20 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
+
+      {/* Presentation progress dots */}
+      {isPresentation && (
+        <div className="fixed right-5 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-2">
+          {[0,1,2,3,4,5].map((i) => (
+            <button
+              key={i}
+              onClick={() => slideRefs.current[i]?.scrollIntoView({ behavior: 'smooth' })}
+              className={`w-3 h-3 rounded-full transition-all ${activeSlide === i ? 'bg-white scale-125' : 'bg-white/40 hover:bg-white/60'}`}
+              aria-label={`Go to slide ${i+1}`}
+            />
+          ))}
+        </div>
+      )}
       </div>
     </div>
   );
