@@ -808,24 +808,33 @@ export class AIDiscussionEngine {
     
     // 質問明確化の文脈を考慮したプロンプト生成
     const discussionTopic = clarificationContext ? createDiscussionPromptWithContext(topic, clarificationContext) : topic;
-    const systemMessage = `以下のトピックについて、複数のAIエージェントが役員会議を開催します。
+    
+    // 新しいセッション開始を明確にし、過去のコンテキストを排除
+    const systemMessage = `【重要】これは新しい議論セッションです。過去の議論や事例は一切参照せず、以下のトピックのみに集中してください。
 
 ${QUESTION_CLARIFICATION_SYSTEM}
 
+=== 議論対象トピック ===
+${discussionTopic}
 
-トピック: ${topic}
+=== 参加エージェント ===
+${selectedAgents.map(a => `${a.name}（${a.role}）`).join(', ')}
 
-参加者: ${selectedAgents.map(a => `${a.name}（${a.role}）`).join(', ')}
-
+=== 議論方針 ===
 検討アプローチ: ${THINKING_MODE_PROMPTS[thinkingMode]}
 
-各エージェントは自分の専門分野から意見を述べ、建設的な議論を行ってください。
-議論は以下の流れで進めてください：
-1. 各エージェントが初期意見を述べる
-2. 互いの意見に対して反応・質問する
+【必須要件】
+1. 上記のトピックに直接関連する内容のみ議論する
+2. 具体的な業界や製品が明記されていない場合は、トピック内容に基づいて推測せず、質問を通じて明確化する
+3. 過去の議論事例やケーススタディは使用しない
+4. 各エージェントは自分の専門分野の観点から、トピック内容に対して具体的な分析・提案を行う
+
+【議論の流れ】
+1. 各エージェントがトピックの理解を確認し、初期分析を述べる
+2. 互いの意見に対して質問・反応する
 3. 最終的な合意点や推奨事項をまとめる
 
-各発言は十分な深さと具体性を持って行ってください。
+各発言は300文字以上とし、必ずトピックの内容に直結する分析を行ってください。
 
 【高品質化の内部指示】
 ${debate.system}
@@ -992,12 +1001,18 @@ ${worldClassExpertise.questionClarification ? `【質問の明確化】\n${world
               ...recentHistory,
               { role: 'user', content: `【${agent.name}として発言】
 
-【世界トップレベルの専門性を発揮してください】
+【重要】まず議論トピックを正確に理解してください：
+${topic}
 
+${recentHistory.length === 0 ? `【初期分析要件】
+1. 上記トピックの内容を正確に把握し、あなたの理解を明示する
+2. 不明確な点があれば推測せず、明確化が必要である旨を指摘する  
+3. トピック内容に直接関連する専門分野の観点から分析する
+4. 過去の事例や無関係な業界の話は一切しない
+
+【世界トップレベルの専門性を発揮】
+あなたの専門分野から見たこのトピックの分析を300文字以上で述べてください。` : `【継続議論要件】
 前の発言者の具体的な数値や主張を引用し、あなたの専門分野からの深い分析を加えてください。
-
-${enhancedBehavior ? `【あなたの議論スタイル】
-${enhancedBehavior.argumentPatterns[Math.floor(Math.random() * enhancedBehavior.argumentPatterns.length)]}` : ''}
 
 【必須要件】
 1. 前の発言から具体的な数値を引用し、その妥当性を統計的に検証
@@ -1008,10 +1023,15 @@ ${enhancedBehavior.argumentPatterns[Math.floor(Math.random() * enhancedBehavior.
 
 ${interactionPrompt}
 
-${enhancedBehavior ? `【使える質問例】
-- ${enhancedBehavior.interactionRules[0]}` : ''}
+重要：必ず前の発言の具体的な部分を引用し、それに対して専門的な知見を加えてください。抽象的な同意や反対ではなく、具体的な数値、事例、代替案を提示してください。`}
 
-重要：必ず前の発言の具体的な部分を引用し、それに対して専門的な知見を加えてください。抽象的な同意や反対ではなく、具体的な数値、事例、代替案を提示してください。` }
+${enhancedBehavior ? `【あなたの議論スタイル】
+${enhancedBehavior.argumentPatterns[Math.floor(Math.random() * enhancedBehavior.argumentPatterns.length)]}` : ''}
+
+【絶対禁止】
+- 質問に含まれていない業界や製品の推測
+- 無関係な過去事例の引用  
+- シャンプー、化粧品、食品等、質問に明記されていない分野への言及` }
             ],
             model: selectedModel,
             max_tokens: getMaxTokensForModel(selectedModel, 'discussion'),
