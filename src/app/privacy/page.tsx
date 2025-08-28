@@ -1,8 +1,8 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'プライバシーポリシー | Night Shift AI',
-  description: 'Night Shift AIにおけるプライバシーポリシーと個人情報の取り扱いについて',
+  title: 'プライバシーポリシー | AI経営軍師',
+  description: 'AI経営軍師におけるプライバシーポリシーと個人情報の取り扱いについて',
 };
 
 export default function PrivacyPage() {
@@ -17,7 +17,7 @@ export default function PrivacyPage() {
               最終更新日: 2025年8月23日
             </p>
             <p className="text-gray-300 mb-6">
-              Night Shift AI（以下「当サービス」）は、ユーザーのプライバシーを尊重し、個人情報の保護に努めています。
+              AI経営軍師（以下「当サービス」）は、ユーザーのプライバシーを尊重し、個人情報の保護に努めています。
               本プライバシーポリシーは、当サービスにおける個人情報の収集、使用、保護について説明します。
             </p>
           </section>
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
               <div>
                 <h3 className="text-xl font-medium mb-2">1.2 使用データ</h3>
                 <ul className="list-disc list-inside space-y-1">
-                  <li>AIディスカッションの利用履歴</li>
+                  <li>AI経営軍師の議論履歴</li>
                   <li>サービスの利用パターン</li>
                   <li>エラーログとパフォーマンスデータ</li>
                 </ul>
@@ -68,10 +68,10 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold mb-4 text-blue-400">3. AIディスカッションデータの取り扱い</h2>
+            <h2 className="text-2xl font-semibold mb-4 text-blue-400">3. AI議論データの取り扱い</h2>
             <div className="text-gray-300 space-y-4">
               <div>
-                <h3 className="text-xl font-medium mb-2">3.1 ディスカッション内容</h3>
+                <h3 className="text-xl font-medium mb-2">3.1 議論内容</h3>
                 <p>
                   AIとの対話内容は、サービス改善の目的で一時的に保存される場合がありますが、
                   個人を特定できない形で処理され、機密性の高い情報は適切に保護されます。
@@ -80,8 +80,8 @@ export default function PrivacyPage() {
               <div>
                 <h3 className="text-xl font-medium mb-2">3.2 データの保持期間</h3>
                 <p>
-                  ディスカッションデータは、法的義務や正当な業務上の理由がない限り、
-                  30日以内に削除されます。
+                  AI経営軍師の議論データは、ユーザーがアカウントを保持している限り、
+                  履歴として保存されます。アカウント削除時にすべてのデータが削除されます。
                 </p>
               </div>
             </div>
@@ -189,9 +189,8 @@ export default function PrivacyPage() {
                 以下の連絡先までお問い合わせください：
               </p>
               <div className="mt-4 p-4 bg-gray-700 rounded">
-                <p><strong>Night Shift AI サポートチーム</strong></p>
-                <p>Email: privacy@nightshift-ai.com</p>
-                <p>（実際のメールアドレスに置き換えてください）</p>
+                <p><strong>AI経営軍師 サポートチーム</strong></p>
+                <p>Email: leadfive.138@gmail.com</p>
               </div>
             </div>
           </section>

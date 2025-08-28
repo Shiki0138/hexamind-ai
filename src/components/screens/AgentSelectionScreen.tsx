@@ -178,7 +178,7 @@ const AGENTS: Agent[] = [
   // リサーチ・インテリジェンス
   {
     id: 'researcher',
-    name: 'りさちゃん（リサーチャー）',
+    name: 'リサーチャー',
     role: 'インターネット検索・情報収集',
     description: 'Google検索とファクトチェックのスペシャリスト',
     color: 'bg-lime-500',

@@ -1,8 +1,8 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: '利用規約 | Night Shift AI',
-  description: 'Night Shift AIの利用規約と使用条件について',
+  title: '利用規約 | AI経営軍師',
+  description: 'AI経営軍師の利用規約と使用条件について',
 };
 
 export default function TermsPage() {
@@ -17,7 +17,7 @@ export default function TermsPage() {
               最終更新日: 2025年8月23日
             </p>
             <p className="text-gray-300 mb-6">
-              本利用規約（以下「本規約」）は、Night Shift AI（以下「当サービス」）の利用に関する条件を定めるものです。
+              本利用規約（以下「本規約」）は、AI経営軍師（以下「当サービス」）の利用に関する条件を定めるものです。
               当サービスをご利用いただく前に、必ず本規約をお読みください。
             </p>
           </section>
@@ -36,7 +36,7 @@ export default function TermsPage() {
             <h2 className="text-2xl font-semibold mb-4 text-blue-400">2. サービスの説明</h2>
             <div className="text-gray-300 space-y-4">
               <p>
-                Night Shift AIは、複数のAIエージェントによる仮想的な役員会議シミュレーションを提供するサービスです。
+                AI経営軍師は、6人のAI経営エキスパートによる仮想的な経営会議シミュレーションを提供するサービスです。
                 ユーザーは質問やトピックを入力し、AIエージェントによる多角的な議論を体験できます。
               </p>
               <div>
@@ -208,7 +208,7 @@ export default function TermsPage() {
             <h2 className="text-2xl font-semibold mb-4 text-blue-400">11. 準拠法と紛争解決</h2>
             <div className="text-gray-300">
               <p>
-                本規約は日本法に準拠し、サービスに関する紛争は東京地方裁判所を
+                本規約は日本法に準拠し、サービスに関する紛争は大阪地方裁判所を
                 専属的合意管轄裁判所として解決されるものとします。
               </p>
             </div>
@@ -231,9 +231,8 @@ export default function TermsPage() {
                 本規約に関するご質問やご意見がございましたら、以下までお問い合わせください：
               </p>
               <div className="mt-4 p-4 bg-gray-700 rounded">
-                <p><strong>Night Shift AI サポートチーム</strong></p>
-                <p>Email: support@nightshift-ai.com</p>
-                <p>（実際のメールアドレスに置き換えてください）</p>
+                <p><strong>AI経営軍師 サポートチーム</strong></p>
+                <p>Email: leadfive.138@gmail.com</p>
               </div>
             </div>
           </section>

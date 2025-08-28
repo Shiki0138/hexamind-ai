@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { ArrowLeftIcon, MicrophoneIcon, PlayIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, MicrophoneIcon, PlayIcon, DocumentArrowUpIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 type DiscussionMode = 'speed' | 'balanced' | 'thorough';
 type ThinkingMode = 'normal' | 'deepthink' | 'creative' | 'critical';
@@ -82,6 +82,8 @@ export default function QuestionInputScreen({
   const [context, setContext] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false); // 二重送信防止用
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (premium = false) => {
     if (question.trim() && !isSubmitting) {
@@ -109,6 +111,18 @@ export default function QuestionInputScreen({
       setIsListening(false);
       setQuestion('新しいAI技術への投資について相談したいのですが、ROIが見込めるでしょうか？');
     }, 2000);
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const newFiles = Array.from(files);
+      setUploadedFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -175,6 +189,55 @@ export default function QuestionInputScreen({
             >
               {isListening ? '聞き取り中...' : '音声入力'}
             </Button>
+          </div>
+        </div>
+
+        {/* 資料アップロード */}
+        <div className="mb-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">
+            参考資料（任意）
+          </h3>
+          <div className="space-y-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => fileInputRef.current?.click()}
+              leftIcon={<DocumentArrowUpIcon className="h-4 w-4" />}
+            >
+              資料をアップロード
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.csv"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+            {uploadedFiles.length > 0 && (
+              <div className="space-y-2">
+                {uploadedFiles.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-sm"
+                  >
+                    <span className="truncate flex-1">{file.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeFile(index)}
+                      className="ml-2"
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <p className="text-xs text-gray-500">
+                  {uploadedFiles.length}個のファイルを選択済み
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
