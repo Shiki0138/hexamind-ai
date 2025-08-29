@@ -164,20 +164,21 @@ export function generateBusinessCasePrompt(topic: string, agent: string): string
   const specialized = SPECIALIZED_AGENT_PROMPTS[agent];
   if (!specialized) return '';
 
-  // ニューヨークでシャンプー販売のような具体的なケースを検出
-  const isProductLaunch = topic.includes('販売') || topic.includes('launch') || topic.includes('売上');
-  const hasLocation = topic.includes('ニューヨーク') || topic.includes('NY') || /[都市|国|地域]/.test(topic);
-  const hasTarget = topic.includes('億') || topic.includes('million') || topic.includes('billion');
+  // 質問内容に基づいた一般的なビジネスケース分析
+  const isBusinessCase = topic.includes('販売') || topic.includes('launch') || topic.includes('売上') || 
+                         topic.includes('事業') || topic.includes('市場') || topic.includes('戦略');
 
-  if (isProductLaunch && hasLocation && hasTarget) {
+  if (isBusinessCase) {
     return `
-このビジネスケースについて、以下の観点から具体的な分析を行ってください：
+このビジネスケースについて、質問で明示された内容に基づいて以下の観点から分析を行ってください：
+
+【重要】質問で言及された地域・業界・製品のみを対象とし、それ以外の事例や比較は一切含めないでください。
 
 【市場分析】
-- 対象地域の市場規模（具体的な数値）
-- 競合他社のマーケットシェア
-- 顧客セグメントとサイズ
-- 規制環境と参入障壁
+- 質問で指定された地域の市場規模（具体的な数値）
+- 同一業界内の競合他社のマーケットシェア  
+- 対象となる顧客セグメントとサイズ
+- 該当地域・業界の規制環境と参入障壁
 
 【実行計画】
 - フェーズごとの展開計画
@@ -191,7 +192,7 @@ export function generateBusinessCasePrompt(topic: string, agent: string): string
 - ミティゲーション策
 - コンティンジェンシープラン
 
-必ず具体的な数値、期限、アクションを含めて提案してください。`;
+必ず質問内容に直接関連する具体的な数値、期限、アクションを含めて提案してください。`;
   }
 
   return '';

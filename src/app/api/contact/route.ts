@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, company, email, phone, message } = body;
+    const { name, company, email, phone, message, plans } = body;
 
     // Validate required fields
     if (!name || !email || !message) {
@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
       email,
       phone,
       messageLength: message.length,
+      selectedPlans: plans || [],
       timestamp: new Date().toISOString()
     });
 
@@ -38,7 +39,8 @@ export async function POST(request: NextRequest) {
             company,
             email,
             phone,
-            message
+            message,
+            plans
           }),
         });
 
@@ -74,6 +76,7 @@ export async function POST(request: NextRequest) {
 会社名: ${company || 'なし'}
 メールアドレス: ${email}
 電話番号: ${phone || 'なし'}
+検討中のプラン: ${plans && plans.length > 0 ? plans.join(', ') : 'なし'}
 
 【お問い合わせ内容】
 ${message}

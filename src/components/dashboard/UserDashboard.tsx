@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { DatabaseService } from '@/lib/supabase';
+import { DatabaseService } from '@/lib/database-adapter';
 import { TIER_LIMITS, UserTier } from '@/lib/auth-system';
+import { UNIFIED_PRICING, getPlanByTier } from '@/lib/pricing';
 import SubscriptionManager from '@/components/subscription/SubscriptionManager';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface UsageStats {
   totalDiscussions: number;
@@ -23,12 +25,24 @@ interface SubscriptionInfo {
   dailyUsage: number;
 }
 
+interface Discussion {
+  id: string;
+  title: string;
+  created_at: string;
+  status: 'completed' | 'in_progress' | 'failed';
+  mode: string;
+  agents_used: string[];
+}
+
 export default function UserDashboard() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const [usageStats, setUsageStats] = useState<UsageStats | null>(null);
   const [subscriptionInfo, setSubscriptionInfo] = useState<SubscriptionInfo | null>(null);
+  const [discussions, setDiscussions] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showDiscussionHistory, setShowDiscussionHistory] = useState(false);
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.id) {
@@ -52,6 +66,10 @@ export default function UserDashboard() {
       // Load subscription info
       const monthlyUsage = await DatabaseService.getMonthlyUsage(userId);
       const dailyUsage = await DatabaseService.getDailyUsage(userId);
+      
+      // Load discussions
+      const userDiscussions = await DatabaseService.getUserDiscussions(userId);
+      setDiscussions(userDiscussions);
       
       setSubscriptionInfo({
         tier: (session.user as any).tier || UserTier.FREE,
@@ -117,9 +135,55 @@ export default function UserDashboard() {
 
   const currentTier = subscriptionInfo?.tier || UserTier.FREE;
   const tierLimits = TIER_LIMITS[currentTier];
+  const currentPlan = getPlanByTier(currentTier);
   const usagePercentage = tierLimits.monthlyDiscussions === -1 
     ? 0 
     : Math.round((subscriptionInfo?.monthlyUsage || 0) / tierLimits.monthlyDiscussions * 100);
+    
+  const handleStartDiscussion = () => {
+    router.push('/discussion');
+  };
+  
+  const handleExportUsage = async () => {
+    try {
+      const analytics = await DatabaseService.getUserAnalytics(session?.user?.id || '');
+      const exportData = {
+        user: {
+          name: session?.user?.name,
+          email: session?.user?.email,
+          tier: currentTier
+        },
+        usage: {
+          totalDiscussions: analytics.totalDiscussions,
+          monthlyDiscussions: subscriptionInfo?.monthlyUsage || 0,
+          dailyUsage: subscriptionInfo?.dailyUsage || 0,
+          successRate: analytics.successRate,
+          averageResponseTime: analytics.averageResponseTime
+        },
+        discussions: discussions.map(d => ({
+          title: d.title,
+          date: d.created_at,
+          status: d.status,
+          mode: d.mode,
+          agents: d.agents_used
+        })),
+        exportDate: new Date().toISOString()
+      };
+      
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `usage-report-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+      setError('エクスポートに失敗しました');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
@@ -138,8 +202,8 @@ export default function UserDashboard() {
           <div className="flex items-center space-x-4">
             <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
               <span className="text-sm text-gray-300">プラン: </span>
-              <span className="font-medium text-white capitalize">
-                {currentTier.charAt(0).toUpperCase() + currentTier.slice(1)}
+              <span className="font-medium text-white">
+                {currentPlan?.name || 'フリー'} ({currentPlan?.priceDisplay || '¥0'})
               </span>
             </div>
             
@@ -305,18 +369,72 @@ export default function UserDashboard() {
           </div>
         </div>
 
-        {/* Subscription Management */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">
-            {currentTier === UserTier.FREE ? 'プランをアップグレード' : 'サブスクリプション管理'}
-          </h3>
-          <div className="bg-white rounded-lg p-6">
-            <SubscriptionManager 
-              currentTier={currentTier} 
-              showUpgradeOnly={currentTier === UserTier.FREE}
-            />
+        {/* Discussion History Modal */}
+        {showDiscussionHistory && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900">議論履歴</h3>
+                <button
+                  onClick={() => setShowDiscussionHistory(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              {discussions.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">
+                  まだ議論を開始していません
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {discussions.map((discussion) => (
+                    <div key={discussion.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-medium text-gray-900">{discussion.title}</h4>
+                          <p className="text-sm text-gray-500">
+                            {new Date(discussion.created_at).toLocaleDateString('ja-JP')}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className={`px-2 py-1 text-xs rounded ${
+                              discussion.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              discussion.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {discussion.status === 'completed' ? '完了' :
+                               discussion.status === 'in_progress' ? '進行中' : '失敗'}
+                            </span>
+                            <span className="text-xs text-gray-500">{discussion.mode}</span>
+                          </div>
+                        </div>
+                        <button className="text-blue-600 hover:text-blue-800 text-sm">
+                          詳細を見る
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Subscription Management - Reduced prominence */}
+        {currentTier === UserTier.FREE && (
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+            <h3 className="text-md font-medium text-white mb-3">
+              プランをアップグレード
+            </h3>
+            <div className="bg-white rounded-lg p-4">
+              <SubscriptionManager 
+                currentTier={currentTier} 
+                showUpgradeOnly={true}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
@@ -324,16 +442,22 @@ export default function UserDashboard() {
             クイックアクション
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <a 
-              href="/"
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg text-center transition-colors"
+            <button 
+              onClick={handleStartDiscussion}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
             >
               新しい議論を開始
-            </a>
-            <button className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition-colors">
+            </button>
+            <button 
+              onClick={() => setShowDiscussionHistory(true)}
+              className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+            >
               議論履歴を表示
             </button>
-            <button className="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors">
+            <button 
+              onClick={handleExportUsage}
+              className="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+            >
               使用状況をエクスポート
             </button>
           </div>

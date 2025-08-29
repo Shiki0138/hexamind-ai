@@ -6,7 +6,8 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { PlusIcon, ClockIcon, UserGroupIcon, UserIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
-import { DatabaseService, Discussion } from '@/lib/supabase';
+import { DatabaseService } from '@/lib/database-adapter';
+import { Discussion } from '@/lib/supabase';
 import Link from 'next/link';
 
 const containerVariants = {

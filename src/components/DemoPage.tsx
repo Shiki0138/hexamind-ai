@@ -38,7 +38,7 @@ const demoDiscussion = {
     },
     {
       agent: "悪魔の代弁者",
-      role: "批判的分析担当",
+      role: "反証・リスク担当",
       message: "CEOの楽観的な見解に異議を申し立てます。以下の重大なリスクを考慮すべきです：\n\n1. 既存大手（Shopify、BASE等）との差別化が不明確\n2. 初期投資3億円では開発とマーケティングの両立が困難\n3. 中小企業の解約率は平均30%/年と高く（出典：SaaS業界レポート2023、矢野経済研究所）、収益安定化に時間がかかる",
       timestamp: "10:00:45",
       confidence: 0.90,
@@ -46,7 +46,7 @@ const demoDiscussion = {
     },
     {
       agent: "CFO AI",
-      role: "財務分析担当",
+      role: "財務・投資担当",
       message: "悪魔の代弁者の指摘は的確です。財務面から詳細に分析します。\n\n初期投資3億円では、開発に1.5億円、マーケティングに1億円、運転資金0.5億円が限界です。競合のShopifyは年間マーケティング費用だけで10億円以上投入しています（出典：Shopify Annual Report 2023）。\n\n追加資金調達なしでは、市場での存在感を確立することは困難でしょう。",
       timestamp: "10:01:20",
       confidence: 0.88,
@@ -205,7 +205,7 @@ const DemoPage = () => {
   const [currentMessageIndex, setCurrentMessageIndex] = useState(-1);
   const [showConsensus, setShowConsensus] = useState(false);
   const [reportView, setReportView] = useState<'text' | 'visual'>('text');
-  const [userQuestion, setUserQuestion] = useState('');
+  const [userQuestion, setUserQuestion] = useState('新規ECプラットフォーム事業への参入を検討しています。初期投資3億円で、3年後に市場シェア10%を目指すことは現実的でしょうか？');
 
   // Auto-play discussion messages
   useEffect(() => {
@@ -362,9 +362,16 @@ const DemoPage = () => {
                 <div>
                   <h4 className="font-semibold text-base sm:text-lg mb-1 sm:mb-2">参加AI軍師たち</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
-                    {['CEO AI', 'CFO AI', 'CMO AI', 'CTO AI', 'COO AI', '悪魔の代弁者'].map(agent => (
-                      <div key={agent} className="bg-slate-700/50 rounded-lg px-3 py-2 text-center text-sm sm:text-base">
-                        {agent}
+                    {[ 
+                      { name: 'CEO AI', role: '経営戦略担当' },
+                      { name: 'CFO AI', role: '財務・投資担当' },
+                      { name: 'CMO AI', role: 'マーケティング担当' },
+                      { name: 'CTO AI', role: '技術戦略担当' },
+                      { name: 'COO AI', role: '事業運営担当' },
+                      { name: '悪魔の代弁者', role: '反証・リスク担当' }
+                    ].map(agent => (
+                      <div key={agent.name} className="bg-slate-700/50 rounded-lg px-3 py-2 text-center text-sm sm:text-base">
+                        {agent.name} / {agent.role}
                       </div>
                     ))}
                   </div>

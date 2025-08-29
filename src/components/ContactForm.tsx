@@ -17,7 +17,8 @@ const ContactForm = () => {
     company: '',
     email: '',
     phone: '',
-    message: ''
+    message: '',
+    plans: [] as string[]
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -27,6 +28,15 @@ const ContactForm = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
+  };
+
+  const handlePlanChange = (plan: string) => {
+    setFormData(prev => ({
+      ...prev,
+      plans: prev.plans.includes(plan)
+        ? prev.plans.filter(p => p !== plan)
+        : [...prev.plans, plan]
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,7 +65,8 @@ const ContactForm = () => {
             company: '',
             email: '',
             phone: '',
-            message: ''
+            message: '',
+            plans: []
           });
         }, 5000);
       } else {
@@ -183,6 +194,28 @@ const ContactForm = () => {
                 className="w-full px-4 py-3 rounded-lg bg-slate-700/50 border border-slate-600 focus:border-blue-500 focus:outline-none transition-colors"
                 placeholder="06-1234-5678"
               />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-3">
+              検討中のプラン（複数選択可）
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+              {['シンプル', 'ベーシック', 'プロフェッショナル'].map((plan) => (
+                <label 
+                  key={plan}
+                  className="flex items-center space-x-2 p-3 rounded-lg bg-slate-700/30 border border-slate-600 hover:bg-slate-700/50 cursor-pointer transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={formData.plans.includes(plan)}
+                    onChange={() => handlePlanChange(plan)}
+                    className="w-4 h-4 text-blue-600 bg-slate-700 border-slate-500 rounded focus:ring-blue-500 focus:ring-2"
+                  />
+                  <span className="text-sm font-medium">{plan}</span>
+                </label>
+              ))}
             </div>
           </div>
 

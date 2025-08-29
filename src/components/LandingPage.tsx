@@ -38,9 +38,11 @@ const LandingPage = () => {
   }, []);
   
   const modeParam = (searchParams.get('mode') || searchParams.get('presentation') || '').toLowerCase();
-  const isPresentation = isMobile || modeParam === 'presentation' || modeParam === '1' || modeParam === 'true' || !searchParams.get('mode'); // モバイルでは常にtrue
+  // デフォルトでプレゼンテーションモードを有効に（PC・スマホ両方）
+  const isPresentation = true;
   const bgParam = (searchParams.get('bg') || searchParams.get('video') || '').toLowerCase();
   const useVideoBg = bgParam === 'video' || bgParam === '1' || bgParam === 'true' || !searchParams.get('bg'); // デフォルトでtrue
+  
 
 
   // Slide navigation (presentation mode)
@@ -104,7 +106,7 @@ const LandingPage = () => {
     {
       icon: <TrophyIcon className="w-8 h-8" />,
       title: "AI同士の相互議論",
-      description: "6人のAI軍師たちが互いに意見を交換し、深い洞察を生み出す"
+      description: "12人のAI軍師から選べる。選んだ6人が互いに意見を交換し、深い洞察を生み出す"
     },
     {
       icon: <UserGroupIcon className="w-8 h-8" />,
@@ -181,7 +183,7 @@ const LandingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white relative flex flex-col">
+    <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white relative flex flex-col ${isPresentation ? 'overflow-y-auto snap-y snap-mandatory h-screen' : ''}`}>
       {/* Background: image or video (faint) */}
       {useVideoBg && (
         <>
@@ -207,7 +209,7 @@ const LandingPage = () => {
             playsInline
             preload="metadata"
             aria-hidden="true"
-            style={{ opacity: 0.45, objectPosition: '50% 30%' }}
+            style={{ opacity: 0.5, objectPosition: '50% 30%' }}
           />
         </>
       )}
@@ -234,7 +236,7 @@ const LandingPage = () => {
       >
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-purple-600/10" />
       </motion.div>
-      <div className="relative z-10 flex-1">
+      <div className={`relative z-10 flex-1 ${isPresentation ? 'overflow-y-auto snap-y snap-mandatory h-screen' : ''}`}>
       {/* Navigation */}
       <nav className="fixed top-0 w-full bg-slate-900/90 backdrop-blur-sm border-b border-slate-700 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -248,14 +250,16 @@ const LandingPage = () => {
                 <a href="#features" className="text-slate-300 hover:text-white transition-colors">機能</a>
                 <Link href="/pricing" className="text-slate-300 hover:text-white transition-colors">料金</Link>
                 <Link href="/faq" className="text-slate-300 hover:text-white transition-colors">FAQ</Link>
-                <Button className="ml-4">ログイン</Button>
+                <Link href="/auth/signin">
+                  <Button className="ml-4">ログイン</Button>
+                </Link>
             </div>
           </div>
         </div>
       </nav>
 
       {/* Hero Slide */}
-      <div ref={registerSlideRef(0)} className={isPresentation ? 'min-h-screen snap-start flex items-center' : ''}>
+      <div ref={registerSlideRef(0)} className={isPresentation ? 'min-h-screen snap-start snap-always flex items-center' : ''}>
       <motion.section 
         className={`${isPresentation ? 'w-full pt-32 pb-20' : 'pt-40 pb-32'} px-4 sm:px-6 lg:px-8`}
         initial={{ opacity: 0, y: 20 }}
@@ -279,7 +283,7 @@ const LandingPage = () => {
               そんな経営者のために
             </span>
             <span className="block text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl mb-2 font-medium">
-              6人のエキスパートが
+              12人から選んだ6人のエキスパートが
             </span>
             <span className="block text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl mb-3 font-medium">
               24時間365日議論を重ね
@@ -291,7 +295,7 @@ const LandingPage = () => {
           
 
           <motion.div 
-            className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center mb-24 md:mb-32 px-4"
+            className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center mt-8 mb-32 md:mb-32 px-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6, duration: 0.8 }}
@@ -365,9 +369,9 @@ const LandingPage = () => {
       </motion.section>
       </div>
 
-      {/* AI Demo Slide - Mobile only */}
-      {isMobile && isPresentation && (
-        <div ref={registerSlideRef(1)} className="min-h-screen snap-start flex items-center">
+      {/* AI Demo Slide */}
+      {isPresentation && (
+        <div ref={registerSlideRef(1)} className="min-h-screen snap-start snap-always flex items-center">
           <section className="w-full py-16 px-4 sm:px-6 lg:px-8">
             <motion.div 
               className="max-w-4xl mx-auto px-4"
@@ -418,7 +422,7 @@ const LandingPage = () => {
       )}
 
       {/* Problem Slide */}
-      <div ref={registerSlideRef(isMobile && isPresentation ? 2 : 1)} className={isPresentation ? 'min-h-screen snap-start flex items-center' : ''}>
+      <div ref={registerSlideRef(2)} className={isPresentation ? 'min-h-screen snap-start snap-always flex items-center' : ''}>
       <section className={`${isPresentation ? 'w-full py-16' : 'py-20'} px-4 sm:px-6 lg:px-8 bg-slate-800/30`}>
         <div className="max-w-7xl mx-auto">
           <motion.div 
@@ -460,7 +464,7 @@ const LandingPage = () => {
       </div>
 
       {/* Solution Slide */}
-      <div ref={registerSlideRef(isMobile && isPresentation ? 3 : 2)} className={isPresentation ? 'min-h-screen snap-start flex items-center' : ''}>
+      <div ref={registerSlideRef(3)} className={isPresentation ? 'min-h-screen snap-start snap-always flex items-center' : ''}>
       <section className={`${isPresentation ? 'w-full py-16' : 'py-20'} px-4 sm:px-6 lg:px-8`}>
         <div className="max-w-7xl mx-auto">
           <motion.div 
@@ -514,7 +518,7 @@ const LandingPage = () => {
       </div>
 
       {/* Use Cases Slide */}
-      <div ref={registerSlideRef(isMobile && isPresentation ? 4 : 3)} className={isPresentation ? 'min-h-screen snap-start flex items-center' : ''}>
+      <div ref={registerSlideRef(4)} className={isPresentation ? 'min-h-screen snap-start snap-always flex items-center' : ''}>
       <section className={`${isPresentation ? 'w-full py-16' : 'py-20'} px-4 sm:px-6 lg:px-8 bg-slate-800/30`}>
         <div className="max-w-7xl mx-auto">
           <motion.div 
@@ -543,7 +547,7 @@ const LandingPage = () => {
               <Card className="p-0 overflow-hidden bg-slate-800/50 border-slate-700 hover:border-blue-500/50 transition-all duration-300 group-hover:scale-105">
                 <div className="relative h-48 overflow-hidden">
                   <img 
-                    src="/images/night-work.jpg"
+                    src="/images/1.png"
                     alt="Night time executive planning"
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                   />
@@ -574,7 +578,7 @@ const LandingPage = () => {
               <Card className="p-0 overflow-hidden bg-slate-800/50 border-slate-700 hover:border-orange-500/50 transition-all duration-300 group-hover:scale-105">
                 <div className="relative h-48 overflow-hidden">
                   <img 
-                    src="/images/business-negotiation.jpg"
+                    src="/images/2.png"
                     alt="Urgent business meeting"
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                   />
@@ -605,7 +609,7 @@ const LandingPage = () => {
               <Card className="p-0 overflow-hidden bg-slate-800/50 border-slate-700 hover:border-green-500/50 transition-all duration-300 group-hover:scale-105">
                 <div className="relative h-48 overflow-hidden">
                   <img 
-                    src="/images/shareholder-meeting.jpg"
+                    src="/images/3.png"
                     alt="Financial documents and reports"
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                   />
@@ -632,7 +636,7 @@ const LandingPage = () => {
       </div>
 
       {/* Pricing Slide */}
-      <div ref={registerSlideRef(isMobile && isPresentation ? 5 : 4)} className={isPresentation ? 'min-h-screen snap-start flex items-center' : ''}>
+      <div ref={registerSlideRef(5)} className={isPresentation ? 'min-h-screen snap-start snap-always flex items-center' : ''}>
       <section className={`${isPresentation ? 'w-full py-16' : 'py-20'} px-4 sm:px-6 lg:px-8`} id="pricing">
         <div className="max-w-7xl mx-auto">
           <motion.div 
@@ -691,15 +695,13 @@ const LandingPage = () => {
                     ))}
                   </div>
 
-                  <Button 
-                    className={`w-full ${
-                      plan.highlight 
-                        ? 'bg-blue-500 hover:bg-blue-600' 
-                        : 'bg-slate-700 hover:bg-slate-600'
-                    }`}
-                  >
-                    {plan.cta}
-                  </Button>
+                  <Link href="/contact">
+                    <Button 
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                      お問い合わせ
+                    </Button>
+                  </Link>
                 </Card>
               </motion.div>
             ))}
@@ -710,7 +712,7 @@ const LandingPage = () => {
 
       {/* CTA Section */}
       {/* CTA Slide */}
-      <div ref={registerSlideRef(isMobile && isPresentation ? 6 : 5)} className={isPresentation ? 'min-h-screen snap-start flex items-center' : ''}>
+      <div ref={registerSlideRef(6)} className={isPresentation ? 'min-h-screen snap-start snap-always flex items-center' : ''}>
       <section className={`${isPresentation ? 'w-full py-16' : 'py-20'} px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-900/20 to-purple-900/20`}>
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
@@ -732,7 +734,7 @@ const LandingPage = () => {
                   <ArrowRightIcon className="w-5 h-5 md:w-6 md:h-6 ml-2" />
                 </Button>
               </Link>
-              <Link href="/">
+              <Link href="/auth/signin">
                 <Button size="lg" variant="outline" className="text-base sm:text-lg md:text-xl px-8 sm:px-10 md:px-12 py-4 sm:py-5 md:py-6 min-h-[48px]">
                   ログイン
                 </Button>
@@ -748,7 +750,7 @@ const LandingPage = () => {
       {/* Presentation progress dots */}
       {isPresentation && (
         <div className="fixed right-5 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-2">
-          {(isMobile ? [0,1,2,3,4,5,6] : [0,1,2,3,4,5]).map((i) => (
+          {[0,1,2,3,4,5,6,7].map((i) => (
             <button
               key={i}
               onClick={() => slideRefs.current[i]?.scrollIntoView({ behavior: 'smooth' })}
@@ -759,10 +761,10 @@ const LandingPage = () => {
         </div>
       )}
       
-      </div>
       
-      {/* Footer */}
-      <footer className="relative z-20 py-16 px-4 sm:px-6 lg:px-8 bg-slate-900 border-t border-slate-700">
+      {/* Footer Slide */}
+      <div ref={registerSlideRef(7)} className={isPresentation ? 'min-h-screen snap-start snap-always flex items-center' : ''}>
+      <footer className="w-full py-16 px-4 sm:px-6 lg:px-8 bg-slate-900/80 backdrop-blur-sm border-t border-slate-700/50">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
@@ -808,6 +810,9 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
+      </div>
+      
+      </div>
     </div>
   );
 };

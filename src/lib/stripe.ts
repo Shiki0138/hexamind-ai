@@ -1,62 +1,16 @@
 // Stripe integration for subscription management
 import Stripe from 'stripe';
 import { UserTier } from './auth-system';
+import { UNIFIED_PRICING } from './pricing';
 
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-11-20.acacia',
-});
-
-// Pricing configuration
-export const PRICING_PLANS = {
-  [UserTier.BASIC]: {
-    name: 'Basic Plan',
-    price: 999, // ¥999 in cents
-    currency: 'jpy',
-    interval: 'month',
-    stripePriceId: process.env.STRIPE_BASIC_PRICE_ID!,
-    features: [
-      '月100回の議論',
-      '全エージェント利用可能',
-      '高品質AI',
-      '議論履歴保存',
-      'エクスポート機能'
-    ]
-  },
-  [UserTier.PRO]: {
-    name: 'Pro Plan',
-    price: 2999, // ¥2999 in cents
-    currency: 'jpy',
-    interval: 'month',
-    stripePriceId: process.env.STRIPE_PRO_PRICE_ID!,
-    features: [
-      '月500回の議論',
-      '全モード利用可能',
-      'プレミアムAI',
-      '詳細分析レポート',
-      '優先サポート',
-      'チーム機能'
-    ]
-  },
-  [UserTier.ENTERPRISE]: {
-    name: 'Enterprise Plan',
-    price: 9999, // ¥9999 in cents
-    currency: 'jpy',
-    interval: 'month',
-    stripePriceId: process.env.STRIPE_ENTERPRISE_PRICE_ID!,
-    features: [
-      '無制限の議論',
-      '専用AI',
-      'SLA保証',
-      'カスタム対応',
-      'White Label',
-      'API提供'
-    ]
-  }
-};
 
 // Stripe service class
 export class StripeService {
+  // Helper method to check if Stripe is configured
+  private static isConfigured(): boolean {
+    return stripe !== null;
+  }
+
   /**
    * Create a Stripe checkout session for subscription
    */
@@ -73,20 +27,24 @@ export class StripeService {
     successUrl: string;
     cancelUrl: string;
   }): Promise<Stripe.Checkout.Session> {
-    const plan = PRICING_PLANS[tier];
+    if (!this.isConfigured()) {
+      throw new Error('Stripe is not configured. Payment features are disabled.');
+    }
+
+    const plan = UNIFIED_PRICING[tier];
     
     if (!plan) {
       throw new Error(`Invalid tier: ${tier}`);
     }
 
     try {
-      const session = await stripe.checkout.sessions.create({
+      const session = await stripe!.checkout.sessions.create({
         mode: 'subscription',
         payment_method_types: ['card'],
         customer_email: userEmail,
         line_items: [
           {
-            price: plan.stripePriceId,
+            price: plan.stripePriceId || `price_${tier}`,
             quantity: 1,
           },
         ],
@@ -124,8 +82,12 @@ export class StripeService {
     customerId: string;
     returnUrl: string;
   }): Promise<Stripe.BillingPortal.Session> {
+    if (!this.isConfigured()) {
+      throw new Error('Stripe is not configured. Payment features are disabled.');
+    }
+
     try {
-      const session = await stripe.billingPortal.sessions.create({
+      const session = await stripe!.billingPortal.sessions.create({
         customer: customerId,
         return_url: returnUrl,
       });
@@ -194,7 +156,7 @@ export class StripeService {
   ): Promise<Stripe.Subscription> {
     try {
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      const newPlan = PRICING_PLANS[newTier];
+      const newPlan = UNIFIED_PRICING[newTier];
 
       if (!newPlan) {
         throw new Error(`Invalid tier: ${newTier}`);
@@ -204,7 +166,7 @@ export class StripeService {
         items: [
           {
             id: subscription.items.data[0].id,
-            price: newPlan.stripePriceId,
+            price: newPlan.stripePriceId || `price_${newTier}`,
           },
         ],
         proration_behavior: 'create_prorations',
@@ -311,7 +273,7 @@ export class StripeService {
         percent_off: percentOff,
         duration,
         duration_in_months: duration === 'repeating' ? durationInMonths : undefined,
-        currency: 'jpy',
+        // Remove currency field for percent_off coupons - it's only used with amount_off
       });
 
       return coupon;
@@ -515,6 +477,17 @@ export class StripeWebhookHandler {
       throw error;
     }
   }
+}
+
+// Initialize Stripe with proper error handling
+let stripe: Stripe | null = null;
+
+if (process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY !== 'your-stripe-secret-key') {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2024-06-20', // Use official Stripe API version
+  });
+} else {
+  console.warn('STRIPE_SECRET_KEY is not configured. Payment features will be disabled.');
 }
 
 export { stripe };

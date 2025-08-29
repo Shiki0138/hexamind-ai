@@ -18,6 +18,7 @@ function doPost(e) {
 会社名: ${data.company || '記載なし'}
 メールアドレス: ${data.email}
 電話番号: ${data.phone || '記載なし'}
+検討中のプラン: ${data.plans && data.plans.length > 0 ? data.plans.join(', ') : '記載なし'}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
 【お問い合わせ内容】

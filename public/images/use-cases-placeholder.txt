@@ -1,7 +1,0 @@
-Please add the following images to this directory:
-
-1. night-work.jpg - Executive sleeping at night / working late
-2. urgent-meeting.jpg - Urgent business meeting scenario
-3. shareholder-meeting.jpg - Financial documents and shareholder meeting preparation
-
-These will be used for the use case section on the landing page.

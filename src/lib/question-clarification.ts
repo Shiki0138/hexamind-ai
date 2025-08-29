@@ -31,10 +31,32 @@ async function callAIAPI(messages: Array<{ role: 'system' | 'user' | 'assistant'
   return data.response || '';
 }
 
+export interface IntentScope { geo?: string; timeframe?: string }
+export interface IntentConstraints { budget_jpy?: number; [k: string]: any }
+export interface IntentKPI { [k: string]: number | string }
+export interface Intent {
+  task_type?: string;
+  domain?: 'marketing' | 'legal' | 'data_analytics' | string;
+  scope?: IntentScope;
+  constraints?: IntentConstraints;
+  kpi?: IntentKPI;
+  deliverable_type?: string;
+  audience?: string;
+  must_include?: string[];
+  must_exclude?: string[];
+  assumptions?: Array<{ statement: string; confidence?: number }>;
+  risk_tolerance?: 'low' | 'medium' | 'high' | string;
+  acceptance_criteria?: string[];
+  confidence?: number;
+  missing_fields?: string[];
+}
+
 export interface ClarificationResult {
   needsClarification: boolean;
   clarificationQuestion?: string;
   suggestedAspects?: string[];
+  intent?: Intent;
+  clarificationQuestions?: string[];
 }
 
 export interface ClarificationContext {
@@ -49,52 +71,50 @@ export interface ClarificationContext {
 export async function analyzeQuestionClarity(
   question: string
 ): Promise<ClarificationResult> {
-  const systemPrompt = `あなたはMcKinseyシニアパートナーレベルの経験を持つ世界的CEOです。
-質問の明確性を最高水準で分析し、曖昧な質問は必ず明確化を要求します。
+  const systemPrompt = `あなたはMcKinseyシニアパートナーレベルのプロジェクトリーダーです。入力文から意図を抽出し、欠損を特定して簡潔に確認します。
 
-【必須確認事項】
-1. **ビジネスモデル**：収益源、価値提案、ターゲット顧客が明確か
-2. **定量的目標**：数値目標、KPI、期限が明確か
-3. **市場定義**：地理的範囲、セグメント、競合環境
-4. **財務制約**：予算上限、投資回収期間、収益目標
-5. **リスク許容度**：リスクプロファイル、最大許容損失
-6. **時間軸**：短期/中期/長期の明確化
-7. **現状把握**：現在の状況、リソース、制約条件
-8. **成功指標**：GO/NO-GO判断基準
-
-【厳格な判断基準】
-- ビジネスモデルが不明確→必ず明確化
-- 上記2つ以上が不明確→明確化必須  
-- 「どちらがいいか」「どうすべきか」等の選択肢が不明→明確化必須
-- 業界・製品・サービスが特定されていない→明確化必須
-- ROI計算に必要な情報が不足→明確化必須
-
-JSONフォーマットで返答してください：
+【出力要件（JSON）】
 {
-  "needsClarification": true/false,
-  "clarificationQuestion": "MECE原則に基づく具体的な確認質問",
-  "suggestedAspects": ["ビジネスモデル", "定量的目標", "市場定義"...]
-}`;
+  "needsClarification": boolean,
+  "clarificationQuestion": string,
+  "clarificationQuestions": string[],
+  "suggestedAspects": string[],
+  "intent": {
+    "task_type": string,
+    "domain": string,
+    "scope": {"geo": string, "timeframe": string},
+    "constraints": {"budget_jpy": number},
+    "kpi": {"leads_per_month": number, "max_cpa_jpy": number},
+    "deliverable_type": string,
+    "assumptions": [{"statement": string, "confidence": number}],
+    "missing_fields": string[],
+    "confidence": number
+  }
+}
+
+【判定ルール】
+- scope.geo / constraints.budget_jpy / kpi は可能な範囲で推定し、信頼度を付与。推定はmissingから除外しない。
+- 不足（missing_fields）が1つ以上→needsClarification=true。
+- Clarificationは3問以内、選択式にしやすい短問を優先。`;
 
   const messages = [
     {
       role: 'system' as const,
       content: systemPrompt
     },
-    {
-      role: 'user' as const,
-      content: `次の質問をMcKinsey基準で分析してください：「${question}」`
-    }
+    { role: 'user' as const, content: `質問: ${question}` }
   ];
 
   try {
     const response = await callAIAPI(messages);
     const result = JSON.parse(response);
-    
+    const intent: Intent | undefined = result.intent;
     return {
-      needsClarification: result.needsClarification || false,
+      needsClarification: !!result.needsClarification,
       clarificationQuestion: result.clarificationQuestion,
-      suggestedAspects: result.suggestedAspects || []
+      clarificationQuestions: result.clarificationQuestions || [],
+      suggestedAspects: result.suggestedAspects || [],
+      intent
     };
   } catch (error) {
     console.error('質問分析エラー:', error);

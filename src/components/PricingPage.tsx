@@ -11,67 +11,39 @@ import {
 } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { UNIFIED_PRICING } from '@/lib/pricing';
 import Link from 'next/link';
 
 const PricingPage = () => {
   const plans = [
     {
-      name: "シンプルプラン",
+      name: UNIFIED_PRICING.basic.name,
       description: "個人事業主・小規模企業向け",
-      price: "9,800",
+      price: UNIFIED_PRICING.basic.priceDisplay,
       icon: <SparklesIcon className="w-8 h-8" />,
-      features: [
-        "月5回までの議論",
-        "基本6人のAI軍師",
-        "テキストレポート出力",
-        "議論履歴30日間保存",
-        "メールサポート"
-      ],
-      limitations: [
-        "ビジュアルレポートなし",
-        "カスタムAI軍師なし",
-        "優先処理なし"
-      ],
-      cta: "シンプルに始める",
+      features: UNIFIED_PRICING.basic.features,
+      limitations: UNIFIED_PRICING.basic.restrictions || [],
+      cta: "ベーシックで始める",
       ctaVariant: "outline" as const,
       highlight: false
     },
     {
-      name: "ベーシックプラン",
+      name: UNIFIED_PRICING.pro.name,
       description: "成長企業・中堅企業向け",
-      price: "29,800",
+      price: UNIFIED_PRICING.pro.priceDisplay,
       icon: <BoltIcon className="w-8 h-8" />,
-      features: [
-        "月20回までの議論",
-        "基本6人＋2人のAI軍師選択可",
-        "テキスト＋ビジュアルレポート",
-        "議論履歴90日間保存",
-        "優先メールサポート",
-        "週次サマリーレポート"
-      ],
-      limitations: [
-        "カスタムAI軍師なし",
-        "データ学習機能なし"
-      ],
-      cta: "ベーシックで始める",
+      features: UNIFIED_PRICING.pro.features,
+      limitations: [],
+      cta: "プロで始める",
       ctaVariant: "primary" as const,
       highlight: true
     },
     {
-      name: "プロフェッショナル",
+      name: UNIFIED_PRICING.enterprise.name,
       description: "大企業・上場企業向け",
-      price: "49,800",
+      price: UNIFIED_PRICING.enterprise.priceDisplay,
       icon: <FireIcon className="w-8 h-8" />,
-      features: [
-        "無制限利用",
-        "全AI軍師＋カスタム作成可",
-        "全レポート形式対応",
-        "議論履歴無期限保存",
-        "24時間優先サポート",
-        "経営データ学習機能",
-        "専任担当者",
-        "四半期レビュー会議"
-      ],
+      features: UNIFIED_PRICING.enterprise.features,
       limitations: [],
       cta: "お問い合わせ",
       ctaVariant: "primary" as const,
@@ -164,7 +136,7 @@ const PricingPage = () => {
 
                   <div className="text-center mb-8">
                     <div className="flex items-baseline justify-center">
-                      <span className="text-4xl font-bold">¥{plan.price}</span>
+                      <span className="text-4xl font-bold">{plan.price}</span>
                       <span className="text-slate-400 ml-2">/月</span>
                     </div>
                   </div>

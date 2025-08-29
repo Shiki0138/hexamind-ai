@@ -51,16 +51,18 @@ export async function POST(request: NextRequest) {
       || request.headers.get('cf-connecting-ip')?.trim()
       || undefined;
     clientId = session?.user?.email || ipFromHeaders || 'anonymous';
-    // 診断ログ（短期的に有効化）
-    console.log('[ai-discussion] rate-check', {
-      // セッションメールがある場合のみ固定IDを使用し、なければ rate-limit 側のIP推定に任せる
-      identifierUsed: session?.user?.email ? clientId : undefined,
-      requestId,
-      xff: request.headers.get('x-forwarded-for') || null,
-      xrip: request.headers.get('x-real-ip') || null,
-      cfip: request.headers.get('cf-connecting-ip') || null,
-      ua: request.headers.get('user-agent') || null,
-    });
+    // 診断ログ（デバッグモードでのみ出力）
+    if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true') {
+      console.log('[ai-discussion] rate-check', {
+        // セッションメールがある場合のみ固定IDを使用し、なければ rate-limit 側のIP推定に任せる
+        identifierUsed: session?.user?.email ? clientId : undefined,
+        requestId,
+        xff: request.headers.get('x-forwarded-for') || null,
+        xrip: request.headers.get('x-real-ip') || null,
+        cfip: request.headers.get('cf-connecting-ip') || null,
+        ua: request.headers.get('user-agent') || null,
+      });
+    }
     const rateViolation = await enforceRateLimit(request, { 
       endpoint: 'ai_discussion', 
       identifier: session?.user?.email ? clientId : undefined,
@@ -70,9 +72,10 @@ export async function POST(request: NextRequest) {
       return rateViolation;
     }
     
-    // APIキーの確認 (モデルに応じて分岐)
-    const isGeminiModel = model.includes('gemini');
-    const isOpenAIModel = model.includes('gpt') || model.includes('o1');
+    // APIキーの確認 (モデルに応じて分岐) - フォールバック時の再代入のためletを使用
+    let isGeminiModel = model.includes('gemini');
+    let isOpenAIModel = model.includes('gpt') || model.includes('o1');
+    let providerUsed = isGeminiModel ? 'gemini' : 'openai';
     
     console.log('[API Route] モデル判定:', {
       requestedModel: model,
@@ -130,6 +133,7 @@ export async function POST(request: NextRequest) {
           modelUsed = 'gpt-4o-mini'; // フォールバックモデル
           isGeminiModel = false;
           isOpenAIModel = true;
+          providerUsed = 'openai';
         } else {
           throw geminiError; // レート制限以外のエラーは再スロー
         }
@@ -138,11 +142,15 @@ export async function POST(request: NextRequest) {
     
     if (!isGeminiModel) {
       // OpenAI API
-      console.log('API Key check for OpenAI...');
+      if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true') {
+        console.log('API Key check for OpenAI...');
+      }
       
       if (isOpenAIModel && process.env.OPENAI_API_KEY) {
-        console.log('API Key length:', process.env.OPENAI_API_KEY.length);
-        console.log('API Key prefix:', process.env.OPENAI_API_KEY.substring(0, 10) + '...');
+        if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true') {
+          console.log('API Key length:', process.env.OPENAI_API_KEY.length);
+          console.log('API Key prefix:', process.env.OPENAI_API_KEY.substring(0, 10) + '...');
+        }
         
         // OpenAI組織IDの確認
         if (process.env.OPENAI_ORGANIZATION) {
@@ -177,8 +185,8 @@ export async function POST(request: NextRequest) {
       success: true,
       response,
       usage: usage,
-      model: model,
-      provider: isGeminiModel ? 'gemini' : 'openai'
+      model: modelUsed,
+      provider: providerUsed
     });
     
   } catch (error) {

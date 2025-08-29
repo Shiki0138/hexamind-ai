@@ -13,6 +13,7 @@ import CostIndicator from '@/components/CostIndicator';
 import { calculateDiscussionCost } from '@/lib/cost-calculator';
 import DetailedResultsScreen from './DetailedResultsScreen';
 import { DiscussionStorageManager } from '@/lib/discussion-storage';
+import { DatabaseService } from '@/lib/database-adapter';
 
 interface Message {
   id: string;
@@ -25,18 +26,24 @@ interface RealDiscussionScreenProps {
   topic: string;
   agents: string[];
   thinkingMode?: ThinkingMode;
+  domainProfile?: 'none' | 'marketing' | 'legal' | 'data_analytics';
   onComplete: (sessionId?: string) => void;
   onHome?: () => void;
   onNewDiscussion?: () => void;
+  userId?: string;
+  userTier?: string;
 }
 
 export default function RealDiscussionScreen({
   topic,
   agents,
   thinkingMode = 'normal',
+  domainProfile = 'none',
   onComplete,
   onHome,
-  onNewDiscussion
+  onNewDiscussion,
+  userId,
+  userTier
 }: RealDiscussionScreenProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isRunning, setIsRunning] = useState(false);
@@ -196,7 +203,11 @@ export default function RealDiscussionScreen({
     setError(null);
 
     try {
-      const analysisResult = await analyzeQuestionClarity(topic);
+      // ドメインプロファイルを前置し、解析精度のヒントに活用（将来的な拡張のため）
+      const topicWithDomain = domainProfile && domainProfile !== 'none'
+        ? `[Domain:${domainProfile}] ${topic}`
+        : topic;
+      const analysisResult = await analyzeQuestionClarity(topicWithDomain);
       
       if (analysisResult.needsClarification && analysisResult.clarificationQuestion) {
         // 確認が必要な場合
@@ -205,12 +216,12 @@ export default function RealDiscussionScreen({
         setShowClarification(true);
       } else {
         // 確認不要の場合は直接ディスカッション開始
-        await startRealDiscussion();
+        await startRealDiscussion(undefined, topicWithDomain);
       }
     } catch (error) {
       console.error('Question analysis error:', error);
       // 分析エラーの場合は直接ディスカッション開始
-      await startRealDiscussion();
+      await startRealDiscussion(undefined, topic);
     } finally {
       setIsAnalyzing(false);
     }
@@ -231,7 +242,7 @@ export default function RealDiscussionScreen({
     await startRealDiscussion(context);
   };
 
-  const startRealDiscussion = async (context?: ClarificationContext) => {
+  const startRealDiscussion = async (context?: ClarificationContext, overrideTopic?: string) => {
     setIsRunning(true);
     setError(null);
     setMessages([]);
@@ -249,9 +260,10 @@ export default function RealDiscussionScreen({
       try {
         chatHistory = new ChatHistoryManager();
         // コンテキストがある場合は拡張された質問を使用
+        const baseTopic = overrideTopic || topic;
         const discussionTopic = context 
-          ? createDiscussionPromptWithContext(topic, context)
-          : topic;
+          ? createDiscussionPromptWithContext(baseTopic, context)
+          : baseTopic;
         
         // セッション開始
         newSessionId = chatHistory.startSession(discussionTopic, agents, thinkingMode, 'real');
@@ -262,9 +274,10 @@ export default function RealDiscussionScreen({
       }
       
       // コンテキストがある場合は拡張された質問を使用
+      const baseTopic = overrideTopic || topic;
       const discussionTopic = context 
-        ? createDiscussionPromptWithContext(topic, context)
-        : topic;
+        ? createDiscussionPromptWithContext(baseTopic, context)
+        : baseTopic;
       
       const discussionGenerator = engine.startDiscussion(discussionTopic, agents, thinkingMode, context, maxBudgetJPY);
       
@@ -393,6 +406,35 @@ export default function RealDiscussionScreen({
       } catch (storageError) {
         console.error('議論の保存に失敗しました:', storageError);
       }
+
+      // ユーザーデータベースに議論結果を保存
+      if (userId) {
+        try {
+          await DatabaseService.saveDiscussion({
+            user_id: userId,
+            topic: context ? createDiscussionPromptWithContext(topic, context) : topic,
+            agents: agents,
+            thinking_mode: thinkingMode,
+            result: summaryMessage?.message || '議論が完了しました',
+            status: 'completed'
+          });
+
+          // 使用状況統計を記録
+          await DatabaseService.recordDiscussion({
+            user_id: userId,
+            topic: topic,
+            agents: agents,
+            thinking_mode: thinkingMode,
+            success: true,
+            response_time: duration * 60, // 秒単位に変換
+            ai_provider: 'openai'
+          });
+          
+          console.log(`[Database] ユーザー議論データを保存しました: ${userId}`);
+        } catch (dbError) {
+          console.error('ユーザーデータベースへの保存に失敗しました:', dbError);
+        }
+      }
       
     } catch (error) {
       console.error('Discussion error:', error);
@@ -433,6 +475,37 @@ export default function RealDiscussionScreen({
 
         if (index === mockMessages.length - 1) {
           setIsRunning(false);
+          
+          // モックディスカッション完了時にもデータベースに保存
+          if (userId) {
+            (async () => {
+              try {
+                await DatabaseService.saveDiscussion({
+                  user_id: userId,
+                  topic: topic,
+                  agents: agents,
+                  thinking_mode: thinkingMode,
+                  result: 'モックディスカッション完了：チーム全体として、慎重かつ戦略的なアプローチで進める方針で合意しました。',
+                  status: 'completed'
+                });
+
+                // 使用状況統計を記録
+                await DatabaseService.recordDiscussion({
+                  user_id: userId,
+                  topic: topic,
+                  agents: agents,
+                  thinking_mode: thinkingMode,
+                  success: true,
+                  response_time: 12, // モックは約12秒
+                  ai_provider: 'mock'
+                });
+                
+                console.log(`[Database] モックディスカッションデータを保存しました: ${userId}`);
+              } catch (dbError) {
+                console.error('モックディスカッションの保存に失敗しました:', dbError);
+              }
+            })();
+          }
         }
       }, mockMsg.delay);
     });
@@ -559,7 +632,7 @@ export default function RealDiscussionScreen({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.1 }}
               >
-                <Card className="p-4">
+                <Card className="p-4 bg-slate-800 border-slate-700">
                   <div className="flex items-start space-x-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${agentColors[message.agent] || 'bg-gray-500'}`}>
                       <span className="text-lg">
@@ -577,7 +650,7 @@ export default function RealDiscussionScreen({
                           })}
                         </span>
                       </div>
-                      <p className="text-slate-200 mt-1 leading-relaxed">
+                      <p className="text-white mt-1 leading-relaxed selection:bg-blue-500 selection:text-white">
                         {message.message}
                       </p>
                     </div>
@@ -616,7 +689,7 @@ export default function RealDiscussionScreen({
                           {agentSummary.keyPoints.map((point, pointIndex) => (
                             <li key={pointIndex} className="flex items-start gap-2">
                               <span className="text-gray-500 mt-0.5">•</span>
-                              <span>{point}</span>
+                              <span className="selection:bg-blue-500 selection:text-white">{point}</span>
                             </li>
                           ))}
                         </ul>
@@ -629,7 +702,7 @@ export default function RealDiscussionScreen({
               {/* 総括 */}
               <div className="mb-6">
                 <h4 className="font-semibold text-purple-300 mb-2">全体総括</h4>
-                <p className="text-gray-300 leading-relaxed">{discussionSummary.summary}</p>
+                <p className="text-gray-300 leading-relaxed selection:bg-blue-500 selection:text-white">{discussionSummary.summary}</p>
               </div>
 
               {/* 決定事項 */}
@@ -692,11 +765,11 @@ export default function RealDiscussionScreen({
 
         {/* 使用方法の説明 */}
         {messages.length === 0 && !isRunning && (
-          <Card className="p-6">
-            <h3 className="font-semibold mb-3">使用方法</h3>
+          <Card className="p-6 bg-slate-800 border-slate-700">
+            <h3 className="font-semibold mb-3 text-white">使用方法</h3>
             <div className="space-y-2 text-sm text-slate-300">
-              <p><strong>リアルAI議論：</strong> OpenAI APIを使用して実際のAIエージェントが議論を行います。</p>
-              <p><strong>モック議論：</strong> 事前に用意されたサンプル議論を表示します。</p>
+              <p><strong className="text-white">リアルAI議論：</strong> OpenAI APIを使用して実際のAIエージェントが議論を行います。</p>
+              <p><strong className="text-white">モック議論：</strong> 事前に用意されたサンプル議論を表示します。</p>
               {!process.env.NEXT_PUBLIC_OPENAI_API_KEY && (
                 <p className="mt-4 p-3 bg-yellow-900 border border-yellow-700 rounded">
                   <strong>注意：</strong> リアルAI議論を使用するには、環境変数にOPENAI_API_KEYを設定してください。

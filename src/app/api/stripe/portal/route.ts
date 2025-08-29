@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { StripeService } from '@/lib/stripe';
-import { DatabaseService } from '@/lib/supabase';
+import { DatabaseService } from '@/lib/database-adapter';
 import { authOptions } from '@/lib/auth-system';
 
 // 動的ルートとして設定（ビルド時の静的解析を回避）

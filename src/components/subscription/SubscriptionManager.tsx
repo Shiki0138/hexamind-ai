@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { UserTier, TIER_LIMITS } from '@/lib/auth-system';
-import { PRICING_PLANS } from '@/lib/stripe';
-import { DatabaseService } from '@/lib/supabase';
+import { DatabaseService } from '@/lib/database-adapter';
+import { UNIFIED_PRICING } from '@/lib/pricing';
+
 
 interface SubscriptionManagerProps {
   currentTier?: UserTier;
@@ -64,6 +65,12 @@ export default function SubscriptionManager({
   const handleUpgrade = async (tier: UserTier) => {
     if (!session?.user?.id) {
       setError('ログインが必要です');
+      return;
+    }
+
+    // Stripeが設定されていない場合はアップグレードを無効化
+    if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+      setError('決済機能は現在利用できません。サポートにお問い合わせください。');
       return;
     }
 
@@ -135,7 +142,7 @@ export default function SubscriptionManager({
     }
   };
 
-  const getPlanCard = (tier: UserTier, plan: typeof PRICING_PLANS[UserTier]) => {
+  const getPlanCard = (tier: UserTier, plan: any) => {
     const isCurrentPlan = currentTier === tier;
     const isUpgrade = getTierLevel(tier) > getTierLevel(currentTier);
     const isDowngrade = getTierLevel(tier) < getTierLevel(currentTier);
@@ -163,7 +170,7 @@ export default function SubscriptionManager({
           
           <div className="mb-4">
             <span className="text-3xl font-bold text-gray-900">
-              ¥{(plan.price / 100).toLocaleString()}
+              {plan.priceDisplay}
             </span>
             <span className="text-gray-500 ml-1">/月</span>
           </div>
@@ -207,13 +214,20 @@ export default function SubscriptionManager({
               )}
             </div>
           ) : isUpgrade || (showUpgradeOnly && tier !== UserTier.FREE) ? (
-            <button
-              onClick={() => handleUpgrade(tier)}
-              disabled={!!upgradeLoading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-lg transition-colors"
-            >
-              {upgradeLoading === tier ? '処理中...' : 'このプランを選択'}
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={() => handleUpgrade(tier)}
+                disabled={!!upgradeLoading || !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-lg transition-colors"
+              >
+                {upgradeLoading === tier ? '処理中...' : 'このプランを選択'}
+              </button>
+              {!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY && (
+                <p className="text-xs text-orange-400 text-center">
+                  決済機能は現在使用できません
+                </p>
+              )}
+            </div>
           ) : isDowngrade ? (
             <button
               onClick={handleManageSubscription}
@@ -297,7 +311,9 @@ export default function SubscriptionManager({
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Object.entries(PRICING_PLANS).map(([tier, plan]) =>
+        {Object.entries(UNIFIED_PRICING)
+          .filter(([tier]) => tier !== 'free')
+          .map(([tier, plan]) =>
           getPlanCard(tier as UserTier, plan)
         )}
       </div>

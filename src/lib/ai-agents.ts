@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { SPECIALIZED_AGENT_PROMPTS, generateBusinessCasePrompt, generateInteractionPrompt } from './specialized-agents';
+import { generateInteractiveResponsePrompt, evaluateDiscussionQuality, DiscussionFlowManager, INTERACTION_PATTERNS } from './interactive-discussion';
 import { selectOptimalModel, getMaxTokensForModel } from './model-config';
 import { buildRolePrompt } from './agent-templates';
 import { buildDebateSystemPrompt } from './debate-protocol';
@@ -640,6 +641,13 @@ export const AI_AGENTS: Record<string, Agent> = {
     expertise: ['インターネット検索', 'ファクトチェック', '市場調査', 'データ収集・整理'],
     systemPrompt: `あなたは「リサーチャー」という名前のチーフリサーチャーです。Google、各種データベース、学術論文を駆使して、最新かつ正確な情報を収集・分析するスペシャリストです。
 
+【厳守事項】
+1. 質問で明示された内容のみを調査対象とする
+2. 質問に含まれていない地域、業界、製品は一切調査・言及しない
+3. 推測や仮定に基づく調査は行わない - 質問内容に忠実に従う
+4. 例：「日本の建築会社の広告」なら日本の建築業界のみ調査
+5. 例：「ECプラットフォーム」なら該当する業界のみ、無関係な商品（シャンプー等）は調査しない
+
 【専門知識と経験】
 - 情報検索：Google検索の高度なテクニック、学術データベース、業界レポート
 - ファクトチェック：情報源の信頼性評価、クロスリファレンス、バイアス検出
@@ -648,27 +656,32 @@ export const AI_AGENTS: Record<string, Agent> = {
 - 情報整理：構造化、可視化、インサイト抽出
 
 【リサーチプロセス】
-1. リサーチクエスチョンの明確化
-2. 情報源の特定と信頼性評価
-3. データ収集と検証
-4. 分析とインサイト抽出
-5. 分かりやすい形での報告
+1. リサーチクエスチョンの明確化 - 質問内容を正確に理解
+2. 調査範囲の限定 - 質問で指定された地域・業界・製品のみ
+3. 情報源の特定と信頼性評価 - 関連性の高い情報源のみ使用
+4. データ収集と検証 - 質問内容に直接関連するデータのみ
+5. 分析とインサイト抽出 - 質問への直接的な回答
 
 【議論への貢献】
-- 議論に必要な最新データと事実の提供
-- 各主張の裏付けとなる証拠の検証
-- 業界ベストプラクティスと事例の紹介
-- 見落とされがちな情報や視点の提供
+- 質問内容に直接関連する最新データと事実の提供
+- 質問で言及された業界・地域の具体的データ
+- 関連する規制・法令・業界標準の情報
+- 質問の文脈に即した競合分析
 - データに基づいた客観的な評価
 
 【発言の特徴】
-- 「最新のデータによると...」
-- 「〇〇の調査では...」
-- 「実際の事例を見ると...」
+- 「質問で言及された[具体的な業界/地域]のデータによると...」
+- 「[質問の対象]に関する調査では...」
+- 「[質問で指定された分野]の実際の事例を見ると...」
 - 必ず情報源を明示
-- 数字とファクトで議論をサポート
+- 質問内容に忠実な数字とファクトで議論をサポート
 
-必ず300文字以上の調査結果を含めて発言してください。憶測ではなく、データと事実に基づいた情報提供を心がけてください。他のエージェントの主張を裏付ける、または反証するデータを積極的に提供してください。`
+【禁止事項】
+- 質問に含まれていない業界の事例（例：建築の質問にシャンプー市場のデータ）
+- 質問で指定されていない地域のデータ（例：日本の質問にニューヨークの事例）
+- 一般的な市場分析手法の説明（具体的な質問内容から逸脱）
+
+必ず300文字以上の調査結果を含めて発言してください。憶測ではなく、質問内容に直接関連するデータと事実に基づいた情報提供を心がけてください。`
   }
 };
 
@@ -686,6 +699,7 @@ export class AIDiscussionEngine {
   private thinkingMode: ThinkingMode = 'normal';
   private totalTokensUsed: { input: number; output: number } = { input: 0, output: 0 };
   private estimatedCostJPY: number = 0;
+  private discussionFlowManager: DiscussionFlowManager = new DiscussionFlowManager();
   
   // メッセージからエージェント名を抽出
   private extractAgentFromMessage(content: string): string {
@@ -982,6 +996,11 @@ ${worldClassExpertise.questionClarification ? `【質問の明確化】\n${world
             : '';
           const interactionPrompt = generateInteractionPrompt(agent.name, previousSpeaker, lastMessage?.content || '');
           
+          // インタラクティブな応答プロンプトを生成
+          const interactiveResponsePrompt = recentHistory.length > 0 
+            ? generateInteractiveResponsePrompt(agent.name, lastMessage?.content || '', previousSpeaker)
+            : '';
+          
           // 専門的なプロンプトを取得
           const specializedPrompt = SPECIALIZED_AGENT_PROMPTS[agent.name];
           const enhancedBehavior = ENHANCED_AGENT_BEHAVIORS[agent.name];
@@ -1004,14 +1023,21 @@ ${worldClassExpertise.questionClarification ? `【質問の明確化】\n${world
 【重要】まず議論トピックを正確に理解してください：
 ${topic}
 
+【厳守事項】
+- 質問で明示された内容のみに基づいて議論する
+- 質問で言及されていない地域、業界、製品について言及しない
+- 例：日本のECプラットフォームの質問なら、日本市場のみに焦点を当てる
+- 例：初期投資3億円と明記されているなら、その金額を前提に議論する
+
 ${recentHistory.length === 0 ? `【初期分析要件】
 1. 上記トピックの内容を正確に把握し、あなたの理解を明示する
-2. 不明確な点があれば推測せず、明確化が必要である旨を指摘する  
-3. トピック内容に直接関連する専門分野の観点から分析する
-4. 過去の事例や無関係な業界の話は一切しない
+2. 質問に含まれる全ての具体的情報（数値、期間、地域、業界）を正確に引用する
+3. 不明確な点があれば推測せず、明確化が必要である旨を指摘する  
+4. トピック内容に直接関連する専門分野の観点から分析する
+5. 過去の事例や無関係な業界の話は一切しない
 
 【世界トップレベルの専門性を発揮】
-あなたの専門分野から見たこのトピックの分析を300文字以上で述べてください。` : `【継続議論要件】
+質問で言及された具体的な状況に即して、あなたの専門分野から見た分析を300文字以上で述べてください。` : `【継続議論要件】
 前の発言者の具体的な数値や主張を引用し、あなたの専門分野からの深い分析を加えてください。
 
 【必須要件】
@@ -1022,6 +1048,8 @@ ${recentHistory.length === 0 ? `【初期分析要件】
 5. 定量的なKPIとマイルストーン
 
 ${interactionPrompt}
+
+${interactiveResponsePrompt}
 
 重要：必ず前の発言の具体的な部分を引用し、それに対して専門的な知見を加えてください。抽象的な同意や反対ではなく、具体的な数値、事例、代替案を提示してください。`}
 
@@ -1060,6 +1088,12 @@ ${enhancedBehavior.argumentPatterns[Math.floor(Math.random() * enhancedBehavior.
             // 予算超過チェック
             if (this.estimatedCostJPY > maxBudgetJPY * 0.9) {
               console.warn(`[コスト警告] 予算の90%に到達: ${this.estimatedCostJPY.toFixed(1)}円 / ${maxBudgetJPY}円`);
+            }
+            
+            // ディスカッションの質を評価
+            const discussionQuality = evaluateDiscussionQuality(message);
+            if (discussionQuality.interactivityScore < 50) {
+              console.warn(`[ディスカッション品質警告] ${agent.name}の発言の相互作用スコアが低い: ${discussionQuality.interactivityScore}/100`);
             }
             
             yield {

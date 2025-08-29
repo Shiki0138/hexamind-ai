@@ -6,11 +6,27 @@ import { StripeWebhookHandler, stripe } from '@/lib/stripe';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
-
 export async function POST(request: NextRequest) {
+  // Validate webhook secret is configured
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error('STRIPE_WEBHOOK_SECRET is not configured');
+    return NextResponse.json(
+      { error: 'Webhook secret not configured' }, 
+      { status: 400 }
+    );
+  }
+
   const body = await request.text();
-  const signature = request.headers.get('stripe-signature')!;
+  const signature = request.headers.get('stripe-signature');
+  
+  if (!signature) {
+    console.error('Missing stripe-signature header');
+    return NextResponse.json(
+      { error: 'Missing signature' }, 
+      { status: 400 }
+    );
+  }
 
   let event: Stripe.Event;
 

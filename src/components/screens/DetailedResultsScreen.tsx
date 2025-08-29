@@ -208,17 +208,17 @@ export default function DetailedResultsScreen({
               >
                 <div className="flex items-center mb-2">
                   <span className="text-2xl mr-2">{summary.avatar}</span>
-                  <span className="font-semibold text-sm">{summary.agent}</span>
+                  <span className="font-semibold text-sm text-white">{summary.agent}</span>
                 </div>
-                <div className="text-xs space-y-1">
+                <div className="text-xs space-y-1 text-white">
                   <div>発言: {summary.messageCount}回</div>
                   <div>平均文字数: {summary.totalWords}</div>
                 </div>
                 {summary.keyPoints.length > 0 && (
                   <div className="mt-2">
-                    <div className="text-xs font-medium mb-1">主要論点:</div>
+                    <div className="text-xs font-medium mb-1 text-white">主要論点:</div>
                     {summary.keyPoints.slice(0, 2).map((point, idx) => (
-                      <div key={idx} className="text-xs opacity-90 line-clamp-2">
+                      <div key={idx} className="text-xs opacity-90 line-clamp-2 text-white">
                         • {point.substring(0, 60)}...
                       </div>
                     ))}
@@ -289,17 +289,17 @@ export default function DetailedResultsScreen({
                     </button>
                   </div>
                   
-                  <div className="p-4">
-                    <div className="prose prose-slate prose-invert max-w-none">
+                  <div className="p-4 bg-white">
+                    <div className="prose prose-slate max-w-none text-gray-900">
                       {expandedMessage === message.id ? (
-                        <div className="whitespace-pre-wrap">{message.message}</div>
+                        <div className="whitespace-pre-wrap text-gray-900">{message.message}</div>
                       ) : (
-                        <div>
+                        <div className="text-gray-900">
                           {truncateMessage(message.message)}
                           {message.message.length > 150 && (
                             <button
                               onClick={() => setExpandedMessage(message.id)}
-                              className="ml-2 text-blue-400 hover:text-blue-300 text-sm"
+                              className="ml-2 text-blue-600 hover:text-blue-700 text-sm"
                             >
                               続きを読む
                             </button>

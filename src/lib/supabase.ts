@@ -131,7 +131,11 @@ export class DatabaseService {
     current_period_start?: string;
     current_period_end?: string;
   }): Promise<Subscription> {
-    const { data, error } = await supabase
+    if (!this.isConfigured()) {
+      throw new Error('Supabase is not configured');
+    }
+
+    const { data, error } = await supabase!
       .from('subscriptions')
       .insert(subscriptionData)
       .select()
@@ -161,7 +165,11 @@ export class DatabaseService {
     subscriptionId: string, 
     status: 'active' | 'inactive' | 'canceled' | 'past_due'
   ): Promise<void> {
-    const { error } = await supabase
+    if (!this.isConfigured()) {
+      return;
+    }
+
+    const { error } = await supabase!
       .from('subscriptions')
       .update({ status })
       .eq('stripe_subscription_id', subscriptionId);
@@ -179,7 +187,11 @@ export class DatabaseService {
     response_time: number;
     ai_provider: string;
   }): Promise<UsageStat> {
-    const { data, error } = await supabase
+    if (!this.isConfigured()) {
+      throw new Error('Supabase is not configured');
+    }
+
+    const { data, error } = await supabase!
       .from('usage_stats')
       .insert({
         ...usageData,
@@ -240,7 +252,11 @@ export class DatabaseService {
     userId: string, 
     limit: number = 50
   ): Promise<UsageStat[]> {
-    const { data, error } = await supabase
+    if (!this.isConfigured()) {
+      return [];
+    }
+
+    const { data, error } = await supabase!
       .from('usage_stats')
       .select('*')
       .eq('user_id', userId)
@@ -260,7 +276,11 @@ export class DatabaseService {
     result?: string;
     status?: 'pending' | 'in_progress' | 'completed' | 'failed';
   }): Promise<Discussion> {
-    const { data, error } = await supabase
+    if (!this.isConfigured()) {
+      throw new Error('Supabase is not configured');
+    }
+
+    const { data, error } = await supabase!
       .from('discussions')
       .insert({
         ...discussionData,
@@ -295,11 +315,49 @@ export class DatabaseService {
     return data || [];
   }
 
+  static async getUserDiscussions(
+    userId: string, 
+    limit: number = 20
+  ): Promise<Array<{
+    id: string;
+    title: string;
+    created_at: string;
+    status: 'completed' | 'in_progress' | 'failed';
+    mode: string;
+    agents_used: string[];
+  }>> {
+    if (!this.isConfigured()) {
+      return [];
+    }
+
+    const { data, error } = await supabase!
+      .from('discussions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    
+    return (data || []).map(disc => ({
+      id: disc.id,
+      title: disc.topic,
+      created_at: disc.created_at,
+      status: disc.status as 'completed' | 'in_progress' | 'failed',
+      mode: disc.thinking_mode,
+      agents_used: disc.agents
+    }));
+  }
+
   static async updateDiscussionStatus(
     discussionId: string, 
     status: 'pending' | 'in_progress' | 'completed' | 'failed',
     result?: string
   ): Promise<void> {
+    if (!this.isConfigured()) {
+      return;
+    }
+
     const updateData: any = { 
       status, 
       updated_at: new Date().toISOString() 
@@ -309,7 +367,7 @@ export class DatabaseService {
       updateData.result = result;
     }
 
-    const { error } = await supabase
+    const { error } = await supabase!
       .from('discussions')
       .update(updateData)
       .eq('id', discussionId);
@@ -397,8 +455,16 @@ export class DatabaseService {
   }
 }
 
-// Real-time subscriptions
+// Real-time subscriptions with null safety
 export const subscribeToUserChanges = (userId: string, callback: (payload: any) => void) => {
+  if (!supabase) {
+    // Return no-op unsubscribe function for development
+    console.warn('Supabase not configured, skipping user changes subscription');
+    return {
+      unsubscribe: () => Promise.resolve({ error: null })
+    };
+  }
+
   return supabase
     .channel('user-changes')
     .on(
@@ -415,6 +481,14 @@ export const subscribeToUserChanges = (userId: string, callback: (payload: any) 
 };
 
 export const subscribeToUsageUpdates = (userId: string, callback: (payload: any) => void) => {
+  if (!supabase) {
+    // Return no-op unsubscribe function for development
+    console.warn('Supabase not configured, skipping usage updates subscription');
+    return {
+      unsubscribe: () => Promise.resolve({ error: null })
+    };
+  }
+
   return supabase
     .channel('usage-updates')
     .on(

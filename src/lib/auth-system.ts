@@ -4,6 +4,8 @@ import { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { createClient } from '@supabase/supabase-js';
+import { MockDatabaseService } from './mock-database';
+import { DatabaseService } from './database-adapter';
 
 // ユーザーティア定義
 export enum UserTier {
@@ -33,7 +35,7 @@ export const TIER_LIMITS = {
   },
   [UserTier.PRO]: {
     monthlyDiscussions: 500,
-    maxAgents: 6,
+    maxAgents: 12,
     modes: ['normal', 'creative', 'deepthink', 'critical'],
     aiQuality: 'premium',
     features: ['all_ai', 'priority', 'analytics', 'team'],
@@ -41,7 +43,7 @@ export const TIER_LIMITS = {
   },
   [UserTier.ENTERPRISE]: {
     monthlyDiscussions: -1, // unlimited
-    maxAgents: 10,
+    maxAgents: 12,
     modes: ['all'],
     aiQuality: 'ultimate',
     features: ['dedicated_ai', 'sla', 'custom', 'white_label'],
@@ -79,11 +81,34 @@ export const authOptions: NextAuthOptions = {
         if (!supabase) {
           console.warn('Supabase not configured, using mock authentication');
           // Mock authentication for development
-          if (credentials.email === 'test@example.com' && credentials.password === 'password') {
+          if (credentials.email === 'admin@hexamind.ai' && credentials.password === 'admin123') {
             return {
-              id: '1',
+              id: 'admin-001',
               email: credentials.email,
-              name: 'Test User'
+              name: '管理者'
+            };
+          }
+          // 一般ユーザー用の認証
+          if (credentials.password === 'demo123') {
+            // 既存ユーザーをチェック
+            const existingUser = await MockDatabaseService.getUserByEmail(credentials.email);
+            if (existingUser) {
+              return {
+                id: existingUser.id,
+                email: existingUser.email,
+                name: existingUser.name || existingUser.email
+              };
+            }
+            // 新規ユーザー作成
+            const newUser = await MockDatabaseService.createUser({
+              email: credentials.email,
+              name: credentials.email.split('@')[0],
+              subscription_tier: 'free'
+            });
+            return {
+              id: newUser.id,
+              email: newUser.email,
+              name: newUser.name || newUser.email
             };
           }
           return null;
@@ -129,6 +154,18 @@ export const authOptions: NextAuthOptions = {
       }
       
       return session;
+    },
+    
+    async redirect({ url, baseUrl }) {
+      // ログイン後のリダイレクト先をダッシュボードに設定
+      if (url.startsWith('/')) {
+        return url === '/' || url === '/auth/signin' ? `${baseUrl}/dashboard` : url;
+      }
+      if (new URL(url).origin === baseUrl) {
+        const pathname = new URL(url).pathname;
+        return pathname === '/' || pathname === '/auth/signin' ? `${baseUrl}/dashboard` : url;
+      }
+      return `${baseUrl}/dashboard`;
     }
   },
   
@@ -142,14 +179,28 @@ export const authOptions: NextAuthOptions = {
 // ユーザーデータ取得
 export async function getUserData(userId: string) {
   if (!supabase) {
-    // Return mock data for development
+    // Use mock database for development
+    const user = await MockDatabaseService.getUserById(userId);
+    if (!user) {
+      // デフォルトユーザーを返す
+      return {
+        id: userId,
+        email: 'guest@example.com',
+        name: 'Guest User',
+        subscription_tier: UserTier.FREE,
+        monthlyUsage: 0,
+        subscriptionStatus: 'inactive'
+      };
+    }
+    
+    const monthlyUsage = await MockDatabaseService.getMonthlyUsage(userId);
+    const subscription = await MockDatabaseService.getActiveSubscription(userId);
+    
     return {
-      id: userId,
-      email: 'test@example.com',
-      name: 'Test User',
-      subscription_tier: UserTier.FREE,
-      monthlyUsage: 0,
-      subscriptionStatus: 'inactive'
+      ...user,
+      tier: user.subscription_tier as UserTier || UserTier.FREE,
+      monthlyUsage,
+      subscriptionStatus: subscription?.status || 'inactive'
     };
   }
 
@@ -259,7 +310,16 @@ export async function recordUsage(
   }
 ): Promise<void> {
   if (!supabase) {
-    console.warn('Supabase not configured, skipping usage recording');
+    console.warn('Using mock database for usage recording');
+    await MockDatabaseService.recordDiscussion({
+      user_id: userId,
+      topic: discussionData.topic,
+      agents: discussionData.agents,
+      thinking_mode: discussionData.mode,
+      success: discussionData.success,
+      response_time: discussionData.responseTime,
+      ai_provider: discussionData.aiProvider
+    });
     return;
   }
 
@@ -382,7 +442,23 @@ async function verifyJWT(token: string): Promise<{ userId: string; tier: UserTie
   // 実際の実装では、jose/jwtやjsonwebtokenライブラリを使用
   // ここでは簡略化
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    // Node.js環境でのBase64デコード（atobbが未定義の場合に対応）
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      throw new Error('Invalid JWT format');
+    }
+    
+    let base64Payload = parts[1];
+    // Base64 URLセーフデコード
+    base64Payload = base64Payload.replace(/-/g, '+').replace(/_/g, '/');
+    // パディング調整
+    while (base64Payload.length % 4) {
+      base64Payload += '=';
+    }
+    
+    const payloadJson = Buffer.from(base64Payload, 'base64').toString('utf8');
+    const payload = JSON.parse(payloadJson);
+    
     return payload;
   } catch (error) {
     throw new Error('Invalid JWT token');

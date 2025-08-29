@@ -65,7 +65,7 @@ const LandingPageMobileOptimized = () => {
     {
       icon: <TrophyIcon className="w-6 h-6 md:w-8 md:h-8" />,
       title: "AI同士の相互議論",
-      description: "6人のAI軍師たちが互いに意見を交換し、深い洞察を生み出す"
+      description: "12人のAI軍師から選べる。選んだ6人が互いに意見を交換し、深い洞察を生み出す"
     },
     {
       icon: <UserGroupIcon className="w-6 h-6 md:w-8 md:h-8" />,
@@ -92,7 +92,7 @@ const LandingPageMobileOptimized = () => {
       description: "個人・小規模事業者向け",
       features: [
         "月30回利用可能",
-        "基本的な6エージェント",
+        "基本的なAI軍師（プランに応じて最大12名）",
         "概要版レポート",
         "議論履歴保存",
         "メールサポート"
@@ -212,7 +212,7 @@ const LandingPageMobileOptimized = () => {
               そんな経営者のために
             </span>
             <span className="block text-lg sm:text-xl md:text-3xl lg:text-4xl mb-1 font-medium text-white">
-              6人のエキスパートが
+              12人から選んだ6人のエキスパートが
             </span>
             <span className="block text-lg sm:text-xl md:text-3xl lg:text-4xl mb-2 font-medium text-white">
               24時間365日議論を重ね
@@ -351,7 +351,7 @@ const LandingPageMobileOptimized = () => {
             viewport={{ once: true }}
           >
             <h2 className="text-3xl md:text-5xl font-bold mb-4 md:mb-6">
-              <span className="text-green-400">6人のAI経営軍師の議論</span>が解決
+              <span className="text-green-400">12人のAI経営軍師の議論</span>が解決
             </h2>
             <p className="text-base md:text-xl text-slate-300 max-w-3xl mx-auto">
               18種類のAI経営軍師から課題に最適な6名を選び、相互議論で新たな戦略を発見
