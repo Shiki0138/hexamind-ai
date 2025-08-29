@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { AIDiscussionEngine, AI_AGENTS, ThinkingMode } from '@/lib/ai-agents';
-import { analyzeQuestionClarity, createDiscussionPromptWithContext, ClarificationContext } from '@/lib/question-clarification';
+import { analyzeQuestionClarity, createDiscussionPromptWithContext, ClarificationContext, type Intent } from '@/lib/question-clarification';
 import QuestionClarificationDialog from '@/components/QuestionClarificationDialog';
 import DiscussionVisualizer from '@/components/DiscussionVisualizer';
 import { ChatHistoryManager } from '../../lib/chat-history';
@@ -53,6 +53,7 @@ export default function RealDiscussionScreen({
   const [clarificationQuestion, setClarificationQuestion] = useState('');
   const [suggestedAspects, setSuggestedAspects] = useState<string[]>([]);
   const [clarificationContext, setClarificationContext] = useState<ClarificationContext | null>(null);
+  const [detectedIntent, setDetectedIntent] = useState<Intent | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentSpeaker, setCurrentSpeaker] = useState<string | undefined>();
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -208,6 +209,7 @@ export default function RealDiscussionScreen({
         ? `[Domain:${domainProfile}] ${topic}`
         : topic;
       const analysisResult = await analyzeQuestionClarity(topicWithDomain);
+      if (analysisResult.intent) setDetectedIntent(analysisResult.intent);
       
       if (analysisResult.needsClarification && analysisResult.clarificationQuestion) {
         // 確認が必要な場合
@@ -607,6 +609,37 @@ export default function RealDiscussionScreen({
             </Button>
           </div>
         </div>
+
+        {/* ディスカッションビジュアライザー */}
+        {/* Intent要約（検出時に表示） */}
+        {detectedIntent && (
+          <Card className="mb-4 p-4 bg-slate-800/60 border-slate-600">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-slate-400">目的/ドメイン:</span>
+                <span className="ml-2 text-white">{detectedIntent.task_type || '-'} / {detectedIntent.domain || '-'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400">商圏:</span>
+                <span className="ml-2 text-white">{detectedIntent.scope?.geo || '-'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400">予算:</span>
+                <span className="ml-2 text-white">{typeof detectedIntent.constraints?.budget_jpy === 'number' ? `${detectedIntent.constraints?.budget_jpy.toLocaleString()}円` : '-'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400">KPI:</span>
+                <span className="ml-2 text-white">{detectedIntent.kpi ? Object.entries(detectedIntent.kpi).map(([k,v]) => `${k}:${v}`).join(' / ') : '-'}</span>
+              </div>
+              {detectedIntent.missing_fields && detectedIntent.missing_fields.length > 0 && (
+                <div className="sm:col-span-2">
+                  <span className="text-amber-400">不足情報:</span>
+                  <span className="ml-2 text-amber-200">{detectedIntent.missing_fields.join(', ')}</span>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
 
         {/* ディスカッションビジュアライザー */}
         <DiscussionVisualizer 
